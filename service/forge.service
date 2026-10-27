@@ -1,0 +1,17 @@
+[Unit]
+Description=Forge - say it, see it at real size in AR, print it (SPECS Lens backend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=banksiai
+WorkingDirectory=/opt/banksy/forge
+EnvironmentFile=/opt/banksy/forge/.env
+ExecStart=/opt/banksy/forge/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8400 --workers 1
+Restart=always
+RestartSec=3
+MemoryMax=4G
+
+[Install]
+WantedBy=multi-user.target

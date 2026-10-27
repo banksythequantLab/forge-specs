@@ -1,0 +1,27 @@
+# BEGIN Lens Studio managed Agents-Docs block
+.mcp.json
+.cursor/mcp.json
+.vscode/mcp.json
+.codex/config.toml
+.claude/settings.local.json
+ls-live-instance.json
+ls-live-instance.json.tmp
+# END Lens Studio managed Agents-Docs block
+
+# Forge additions
+Cache/
+Workspaces/
+PluginsUserPreferences/
+Support/
+*.lock
+*.esproj.*.lock
+service/venv/
+service/data/
+service/outbox/
+service/.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+Thumbs.db
+
