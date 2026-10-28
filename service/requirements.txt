@@ -7,3 +7,5 @@ pydantic>=2.7
 pytest>=8
 scipy>=1.13
 networkx>=3.3
+shapely>=2.0
+mapbox_earcut>=1.0

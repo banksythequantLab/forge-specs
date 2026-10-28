@@ -165,6 +165,34 @@ def test_auto_orient_prefers_flat_hook(tmp_path):
     assert again["overhang_area_mm2"] < 1.0
 
 
+def test_orientation_table_covers_flip_and_turn(tmp_path):
+    """The Lens reaches 24 orientations with Flip (90° about X) and Turn (90° about Y); each must be in the table."""
+    stl = tmp_path / "hook.stl"
+    geometry.render_stl("hook", PARTS["hook"].defaults(), stl)
+    mesh = geometry.drop_to_bed(geometry.load_scad_mesh(stl))
+    table = geometry.orientation_table(mesh)
+    keys = [r["key"] for r in table]
+    assert len(table) == 24 and len(set(keys)) == 24
+    ident = next(r for r in table if r["key"] == "1,0,0,0,1,0,0,0,1")
+    assert ident["metrics"] == geometry.print_metrics(mesh)
+    assert ident["footprint"]["tris"] and ident["footprint"]["area_mm2"] > 100  # the arms need support as designed
+    # every footprint point lies inside the part's own footprint
+    for r in table:
+        half = [d / 2 + 0.3 for d in r["metrics"]["dims_mm"][:2]]
+        for x, y in r["footprint"]["tris"]:
+            assert abs(x) <= half[0] and abs(y) <= half[1], (r["key"], x, y, half)
+    # the Lens's Flip: 90° about Lens X as a quaternion -> rounded matrix key -> same metrics as /metrics would give
+    q = [math.sin(math.radians(45)), 0, 0, math.cos(math.radians(45))]
+    R_lens = geometry.quat_lens_to_matrix(q)
+    lens_key = ",".join(str(int(round(v))) for v in R_lens[:3, :3].flatten())
+    row = next(r for r in table if r["key"] == lens_key)
+    direct = geometry.print_metrics(geometry.orient(mesh, geometry.lens_rotation_to_scad(R_lens)))
+    assert row["metrics"]["overhang_pct"] == direct["overhang_pct"] == 0.0
+    assert row["footprint"]["tris"] == []
+    best = geometry.auto_orient(mesh)
+    assert best["key"] in keys and next(r for r in table if r["key"] == best["key"])["metrics"] == best["metrics"]
+
+
 def test_glb_is_y_up_metres(tmp_path):
     stl = tmp_path / "tray.stl"
     geometry.render_stl("tray", PARTS["tray"].defaults(), stl)
@@ -194,7 +222,10 @@ def test_api_design_orient_flow(tmp_path, monkeypatch):
     job = r.json()
     assert job["part"]["type"] == "hook" and job["glb_url"].endswith("model.glb?v=1")
     assert job["suggested"]["metrics"]["overhang_area_mm2"] < 1.0
+    assert len(job["orientations"]) == 24 and job["suggested"]["key"] in {o["key"] for o in job["orientations"]}
     assert client.get(f"/jobs/{job['job_id']}/model.glb").status_code == 200
+    r = client.post("/metrics", json={"job_id": job["job_id"], "quat": job["suggested"]["lens_quat"], "scale": 1.3})
+    assert r.status_code == 200 and r.json()["metrics"]["overhang_pct"] == 0.0 and r.json()["key"] == job["suggested"]["key"]
     r = client.post("/adjust", json={"job_id": job["job_id"], "params": {"hook_width": 40}})
     assert r.status_code == 200 and r.json()["part"]["params"]["hook_width"] == 40 and r.json()["version"] == 2
     r = client.post("/orient", json={"job_id": job["job_id"], "quat": job["suggested"]["lens_quat"]})

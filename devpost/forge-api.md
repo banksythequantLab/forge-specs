@@ -6,11 +6,22 @@ Base URL: `https://forge.banksyai.com` (HTTPS; reachable from the Lens Studio pr
 |---|---|---|
 | `GET /health` | — | `{ok, openscad, ollama, models, llm_ready, llm_timeout_s}` — `llm_ready` true means the next `/design` is a live model design |
 | `GET /warm` | — | starts loading the local model in the background and returns at once: `{ok, model, loaded, started, warming}` (call once when the Lens starts) |
-| `POST /design` | `{prompt}` | `{job_id, part{type,name,params,rationale,source}, dims_mm[3], metrics{overhang_pct, needs_support, height_mm, volume_cm3}, suggested{lens_quat[x,y,z,w], metrics}, glb_url, stl_url, llm_seconds}` |
+| `POST /design` | `{prompt}` | `{job_id, part{type,name,params,rationale,source}, dims_mm[3], metrics{overhang_pct, needs_support, height_mm, volume_cm3}, suggested{lens_quat[x,y,z,w], metrics, key}, orientations[24], glb_url, stl_url, llm_seconds}` |
 | `POST /adjust` | `{job_id, params{...}}` | same shape as `/design` (re-rendered, `version` +1, `glb_url` changes) |
-| `POST /auto_orient` | `{job_id, scale}` | `{lens_quat, metrics}` |
+| `POST /auto_orient` | `{job_id, scale}` | `{lens_quat, metrics, key}` |
+| `POST /metrics` | `{job_id, quat[x,y,z,w], scale}` | `{key, metrics, footprint}` for any rotation — no file written |
 | `POST /orient` | `{job_id, quat[x,y,z,w]` or `euler_deg[x,y,z], scale}` | `{filename, stl_url, outbox, metrics, message}` — the print-ready STL |
 | `GET /jobs/{id}/model.glb` | — | the part as glTF binary |
+
+## Orientations table and the support footprint (`orientations[]`)
+
+Flip (90° about Lens X) and Turn (90° about Y) only ever reach the 24 axis-aligned orientations, so `/design` returns all of them up front and the Lens never needs a network call to keep the readout honest after a Flip or Turn — and it works offline. Each row is `{key, lens_quat, metrics, footprint}`:
+
+- `key` is the part's current rotation **relative to its loaded orientation** as a 3×3 row-major matrix with every entry rounded to an integer, joined with commas — e.g. as loaded `"1,0,0,0,1,0,0,0,1"`. In the Lens: take the current relative rotation quaternion, convert to a matrix, `Math.round` each entry, join. `suggested.key` is the auto-orient row.
+- `metrics` is the same shape as the top-level `metrics` for that orientation (`overhang_pct` is scale-invariant, so one table covers Bigger/Smaller).
+- `footprint` is **where supports would be printed**: the overhanging faces projected straight down onto the bed, as a flat triangle list `tris: [[x, y], ...]` (three points per triangle, millimetres, relative to the part's footprint centre; `area_mm2` alongside). Draw it as a flat red mesh on the desk directly under the part — `scad (x, y)` → Lens `(x, −y)` in the desk plane, divided by 10 for cm, multiplied by the current scale factor — so the "needs support here" is readable from the seated view even though the red faces themselves point down. Empty when nothing overhangs (0%). Keep it light grey→red tinted like the faces (`#ff4b4b`), slightly transparent, lifted 0.3 cm off the desk so it never z-fights.
+
+After every Flip / Turn: look up the row by `key`, set the plate's overhang line from `row.metrics.overhang_pct`, and rebuild the footprint mesh from `row.footprint.tris`. `/metrics` exists for a rotation that is not axis-aligned (not needed for the demo).
 
 ## Time budget and `part.source`
 

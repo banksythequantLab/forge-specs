@@ -107,7 +107,10 @@ def _build(d: Path, spec: dict[str, Any]) -> dict[str, Any]:
     return {
         "render_seconds": round(seconds, 2),
         "metrics": metrics,
-        "suggested": {"lens_quat": best["lens_quat"], "metrics": best["metrics"]},
+        "suggested": {"lens_quat": best["lens_quat"], "metrics": best["metrics"], "key": best["key"]},
+        # Every orientation Flip / Turn can reach, so the Lens updates the overhang figure and the
+        # red support footprint on the desk without a network call (and offline).
+        "orientations": geometry.orientation_table(mesh),
     }
 
 
@@ -122,6 +125,7 @@ def _job_payload(request: Request, job_id: str, part: dict[str, Any]) -> dict[st
         "dims_mm": part["metrics"]["dims_mm"],
         "metrics": part["metrics"],
         "suggested": part["suggested"],
+        "orientations": part.get("orientations", []),
         "glb_url": f"{base}/jobs/{job_id}/model.glb?v={v}",
         "stl_url": f"{base}/jobs/{job_id}/model.stl?v={v}",
         "llm_seconds": part.get("llm_seconds"),
@@ -206,7 +210,32 @@ def auto_orient(body: JobIn) -> dict[str, Any]:
     d = _job_dir(body.job_id)
     mesh = geometry.load_scad_mesh(d / "model.stl")
     best = geometry.auto_orient(mesh, body.scale)
-    return {"job_id": body.job_id, "lens_quat": best["lens_quat"], "metrics": best["metrics"]}
+    return {"job_id": body.job_id, "lens_quat": best["lens_quat"], "metrics": best["metrics"], "key": best["key"]}
+
+
+@app.post("/metrics")
+def metrics(body: OrientIn) -> dict[str, Any]:
+    """Overhang metrics + support footprint for any orientation, without writing a file.
+
+    Flip / Turn only reach the 24 axis-aligned orientations, which `/design` already returns in
+    `orientations`; this is for free rotation (hand-placed) or a scale the table does not cover.
+    """
+    d = _job_dir(body.job_id)
+    if body.quat and len(body.quat) == 4:
+        R_lens = geometry.quat_lens_to_matrix(body.quat)
+    elif body.euler_deg and len(body.euler_deg) == 3:
+        R_lens = geometry.euler_lens_to_matrix(body.euler_deg)
+    else:
+        R_lens = geometry.tf.identity_matrix()
+    R_scad = geometry.lens_rotation_to_scad(R_lens)
+    mesh = geometry.load_scad_mesh(d / "model.stl")
+    oriented = geometry.orient(mesh, R_scad, body.scale)
+    return {
+        "job_id": body.job_id,
+        "key": geometry.lens_rotation_key(R_scad),
+        "metrics": geometry.print_metrics(oriented),
+        "footprint": geometry.footprint(oriented),
+    }
 
 
 @app.post("/orient")

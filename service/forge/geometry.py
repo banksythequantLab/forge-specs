@@ -180,4 +180,85 @@ def auto_orient(mesh_scad: trimesh.Trimesh, scale: float = 1.0) -> dict[str, Any
         if best is None or key < best[0]:
             best = (key, M, met)
     _, M, met = best
-    return {"R_scad": M, "metrics": met, "lens_quat": scad_rotation_to_lens_quat(M)}
+    return {"R_scad": M, "metrics": met, "lens_quat": scad_rotation_to_lens_quat(M), "key": lens_rotation_key(M)}
+
+
+# ---------------------------------------------------------------- support footprint + orientation table
+FOOTPRINT_MAX_TRIS = 600  # keep the payload small for text-heavy parts
+
+
+def _overhang_faces(mesh: trimesh.Trimesh) -> np.ndarray:
+    """Boolean mask of faces that would need support (same rule as print_metrics)."""
+    normals = mesh.face_normals
+    centers = mesh.triangles_center
+    minz = mesh.bounds[0][2]
+    return (normals[:, 2] < -OVERHANG_COS) & (centers[:, 2] > minz + BED_EPS)
+
+
+def footprint(mesh: trimesh.Trimesh) -> dict[str, Any]:
+    """Where supports would be printed: the overhanging faces projected straight down onto the bed.
+
+    Returns a flat triangle list in the SCAD XY plane (mm, relative to the footprint centre —
+    the mesh is already centred by drop_to_bed): {"tris": [[x, y], ...], "area_mm2": ...}.
+    The Lens draws it red on the desk under the part: scad (x, y) -> Lens (x, -y) in cm.
+    Uses shapely to union the triangles into a few polygons when it is available; otherwise
+    returns the raw projected triangles (capped).
+    """
+    mask = _overhang_faces(mesh)
+    if not mask.any():
+        return {"tris": [], "area_mm2": 0.0}
+    tris2d = mesh.triangles[mask][:, :, :2]  # (n, 3, 2)
+    try:
+        import shapely
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
+        from trimesh.creation import triangulate_polygon
+
+        polys = [Polygon(t) for t in tris2d if Polygon(t).area > 1e-6]
+        union = unary_union(polys).buffer(0.05).simplify(0.25, preserve_topology=True)
+        parts = list(union.geoms) if hasattr(union, "geoms") else [union]
+        out: list[list[float]] = []
+        area = 0.0
+        for poly in parts:
+            if poly.is_empty or poly.area < 0.5:
+                continue
+            area += float(poly.area)
+            v, f = triangulate_polygon(poly)
+            for tri in f:
+                out.extend([[round(float(v[i][0]), 2), round(float(v[i][1]), 2)] for i in tri])
+        if len(out) // 3 > FOOTPRINT_MAX_TRIS:
+            out = out[: FOOTPRINT_MAX_TRIS * 3]
+        return {"tris": out, "area_mm2": round(area, 1)}
+    except Exception:  # shapely missing or a degenerate polygon: raw triangles, largest first
+        areas = mesh.area_faces[mask]
+        order = np.argsort(-areas)[:FOOTPRINT_MAX_TRIS]
+        out = []
+        for i in order:
+            out.extend([[round(float(p[0]), 2), round(float(p[1]), 2)] for p in tris2d[i]])
+        return {"tris": out, "area_mm2": round(float(areas.sum()), 1)}
+
+
+def lens_rotation_key(R_scad: np.ndarray) -> str:
+    """Integer key of an axis-aligned rotation as the Lens sees it (row-major 3x3 of R_lens).
+
+    The Lens rounds its own part rotation matrix the same way, so Flip / Turn (90 degree steps)
+    can look the orientation up without a network call.
+    """
+    R_lens = R_SCAD_TO_GLB @ R_scad @ R_GLB_TO_SCAD
+    return ",".join(str(int(round(float(v)))) for v in R_lens[:3, :3].flatten())
+
+
+def orientation_table(mesh_scad: trimesh.Trimesh, scale: float = 1.0) -> list[dict[str, Any]]:
+    """Metrics + support footprint for all 24 axis-aligned orientations, keyed for the Lens."""
+    rows = []
+    for M in _axis_rotations():
+        m = orient(mesh_scad, M, scale)
+        rows.append(
+            {
+                "key": lens_rotation_key(M),
+                "lens_quat": scad_rotation_to_lens_quat(M),
+                "metrics": print_metrics(m),
+                "footprint": footprint(m),
+            }
+        )
+    return rows
