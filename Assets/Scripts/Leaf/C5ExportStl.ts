@@ -9,6 +9,9 @@ import { forge, resetLens, waitUntil } from "./ForgeTestUtils"
  * ending in .stl; the ring over the printer completes; and because the user is
  * looking at the desk rather than the printer, the arrow points toward it.
  *
+ * The plate footer only has room for a word, so it says "saved"; the filename
+ * is shown at size under the printer ring, and both are checked here.
+ *
  * The chime is played from the printer's SceneObject at the same moment the
  * arrow appears; a scenario cannot hear it, so the arrow stands in for both.
  */
@@ -44,7 +47,11 @@ export class C5ExportStl extends Scenario {
       s.filename.substr(s.filename.length - 4),
       "the export should produce an .stl filename"
     ).toBe(".stl")
-    expect(s.statusText, "the plate should show the filename once written").toBe(s.filename)
+    expect(s.statusText, "the plate footer should say the file is saved").toBe("saved")
+    expect(
+      s.printerFileText,
+      "and the filename itself should be shown under the printer ring"
+    ).toBe(s.filename)
     expect(s.printerRingVisible, "the ring should still be showing its result").toBe(true)
 
     // The user is looking at the desk, so the printer is out of view and the

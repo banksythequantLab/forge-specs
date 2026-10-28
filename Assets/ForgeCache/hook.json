@@ -1,1 +1,1364 @@
-{"job_id":"20261027-184616-43f9","version":1,"part":{"type":"hook","name":"Headphone Desk Hook","params":{"edge_thickness":30.0,"clamp_depth":40.0,"hook_width":28.0,"hook_drop":55.0,"hook_reach":30.0,"wall":4.0,"lip":8.0},"rationale":"The 30 mm edge thickness ensures a secure clamp on your desk, while the 28 mm width comfortably accommodates standard headphone bands.","source":"ollama:qwen3.8:27b"},"title":"Desk-edge clamp hook","dims_mm":[74.0,28.0,89.4],"metrics":{"dims_mm":[74.0,28.0,89.4],"height_mm":89.4,"volume_cm3":23.23,"watertight":true,"overhang_area_mm2":2240.0,"overhang_pct":16.6,"bed_contact_mm2":952.0,"needs_support":true,"faces":52},"suggested":{"lens_quat":[-0.707107,0.0,0.0,0.707107],"metrics":{"dims_mm":[74.0,89.4,28.0],"height_mm":28.0,"volume_cm3":23.23,"watertight":true,"overhang_area_mm2":0.0,"overhang_pct":0.0,"bed_contact_mm2":829.6,"needs_support":false,"faces":52}},"glb_url":"https://forge.banksyai.com/jobs/20261027-184616-43f9/model.glb?v=1","stl_url":"https://forge.banksyai.com/jobs/20261027-184616-43f9/model.stl?v=1","llm_seconds":10.4,"render_seconds":0.01,"exports":[{"n":1,"filename":"forge_headphone_desk_hook_20261027-184616-43f9_v1.stl","quat":[-0.707107,0.0,0.0,0.707107],"euler_deg":null,"scale":1.0,"metrics":{"dims_mm":[74.0,89.4,28.0],"height_mm":28.0,"volume_cm3":23.23,"watertight":true,"overhang_area_mm2":0.0,"overhang_pct":0.0,"bed_contact_mm2":829.6,"needs_support":false,"faces":52},"time":1793141176.291525}]}
+{
+  "job_id": "20261028-163647-8922",
+  "version": 1,
+  "part": {
+    "type": "hook",
+    "name": "Headphone Desk Hook",
+    "params": {
+      "edge_thickness": 30,
+      "clamp_depth": 40,
+      "hook_width": 35,
+      "hook_drop": 55,
+      "hook_reach": 40,
+      "wall": 4,
+      "lip": 8
+    },
+    "rationale": "Designed for a 30mm desk edge with a headphone hook that has a 35mm width to hold standard headphones and a 40mm reach to prevent slipping.",
+    "source": "ollama:qwen3:4b"
+  },
+  "title": "Desk-edge clamp hook",
+  "dims_mm": [
+    84,
+    35,
+    89.4
+  ],
+  "metrics": {
+    "dims_mm": [
+      84,
+      35,
+      89.4
+    ],
+    "height_mm": 89.4,
+    "volume_cm3": 30.44,
+    "watertight": true,
+    "overhang_area_mm2": 2800,
+    "overhang_pct": 16.2,
+    "bed_contact_mm2": 1540,
+    "needs_support": true,
+    "faces": 52
+  },
+  "suggested": {
+    "lens_quat": [
+      -0.707107,
+      0,
+      0,
+      0.707107
+    ],
+    "metrics": {
+      "dims_mm": [
+        84,
+        89.4,
+        35
+      ],
+      "height_mm": 35,
+      "volume_cm3": 30.44,
+      "watertight": true,
+      "overhang_area_mm2": 0,
+      "overhang_pct": 0,
+      "bed_contact_mm2": 869.6,
+      "needs_support": false,
+      "faces": 52
+    },
+    "key": "1,0,0,0,0,1,0,-1,0"
+  },
+  "orientations": [
+    {
+      "key": "1,0,0,0,1,0,0,0,1",
+      "lens_quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          35,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            -1.97,
+            -17.54
+          ],
+          [
+            -2,
+            17.55
+          ],
+          [
+            -42.03,
+            17.54
+          ],
+          [
+            -1.97,
+            -17.54
+          ],
+          [
+            -42.03,
+            17.54
+          ],
+          [
+            -42.04,
+            -17.53
+          ]
+        ],
+        "area_mm2": 1405
+      }
+    },
+    {
+      "key": "1,0,0,0,-1,0,0,0,-1",
+      "lens_quat": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          35,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            1.97,
+            17.54
+          ],
+          [
+            2,
+            -17.55
+          ],
+          [
+            42.03,
+            -17.54
+          ],
+          [
+            1.97,
+            17.54
+          ],
+          [
+            42.03,
+            -17.54
+          ],
+          [
+            42.04,
+            17.53
+          ],
+          [
+            -42.03,
+            17.54
+          ],
+          [
+            -42,
+            -17.55
+          ],
+          [
+            -1.97,
+            -17.54
+          ],
+          [
+            -42.03,
+            17.54
+          ],
+          [
+            -1.97,
+            -17.54
+          ],
+          [
+            -1.96,
+            17.53
+          ]
+        ],
+        "area_mm2": 2809.9
+      }
+    },
+    {
+      "key": "-1,0,0,0,-1,0,0,0,1",
+      "lens_quat": [
+        0,
+        0,
+        1,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          35,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            1.97,
+            -17.54
+          ],
+          [
+            42.05,
+            -17.5
+          ],
+          [
+            42.03,
+            17.54
+          ],
+          [
+            1.97,
+            -17.54
+          ],
+          [
+            42.03,
+            17.54
+          ],
+          [
+            1.96,
+            17.53
+          ],
+          [
+            -1.97,
+            -17.54
+          ],
+          [
+            -2,
+            17.55
+          ],
+          [
+            -42.03,
+            17.54
+          ],
+          [
+            -1.97,
+            -17.54
+          ],
+          [
+            -42.03,
+            17.54
+          ],
+          [
+            -42.04,
+            -17.53
+          ]
+        ],
+        "area_mm2": 2809.8
+      }
+    },
+    {
+      "key": "-1,0,0,0,1,0,0,0,-1",
+      "lens_quat": [
+        0,
+        -1,
+        0,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          35,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            1.97,
+            17.54
+          ],
+          [
+            2,
+            -17.55
+          ],
+          [
+            42.03,
+            -17.54
+          ],
+          [
+            1.97,
+            17.54
+          ],
+          [
+            42.03,
+            -17.54
+          ],
+          [
+            42.04,
+            17.53
+          ]
+        ],
+        "area_mm2": 1405
+      }
+    },
+    {
+      "key": "1,0,0,0,0,1,0,-1,0",
+      "lens_quat": [
+        -0.707107,
+        0,
+        0,
+        0.707107
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          89.4,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "1,0,0,0,0,-1,0,1,0",
+      "lens_quat": [
+        0.707107,
+        0,
+        0,
+        0.707107
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          89.4,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "-1,0,0,0,0,-1,0,-1,0",
+      "lens_quat": [
+        0,
+        -0.707107,
+        0.707107,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          89.4,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "-1,0,0,0,0,1,0,1,0",
+      "lens_quat": [
+        0,
+        0.707107,
+        0.707107,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          84,
+          89.4,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "0,0,-1,0,-1,0,-1,0,0",
+      "lens_quat": [
+        0.707107,
+        0,
+        -0.707107,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          84,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            -17.54,
+            -42.03
+          ],
+          [
+            17.55,
+            -42
+          ],
+          [
+            17.54,
+            -1.97
+          ],
+          [
+            -17.54,
+            -42.03
+          ],
+          [
+            17.54,
+            -1.97
+          ],
+          [
+            -17.53,
+            -1.96
+          ],
+          [
+            -17.54,
+            1.97
+          ],
+          [
+            17.55,
+            2
+          ],
+          [
+            17.54,
+            42.03
+          ],
+          [
+            -17.54,
+            1.97
+          ],
+          [
+            17.54,
+            42.03
+          ],
+          [
+            -17.53,
+            42.04
+          ]
+        ],
+        "area_mm2": 2809.9
+      }
+    },
+    {
+      "key": "0,0,-1,0,1,0,1,0,0",
+      "lens_quat": [
+        0,
+        -0.707107,
+        0,
+        0.707107
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          84,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            -17.54,
+            1.97
+          ],
+          [
+            17.55,
+            2
+          ],
+          [
+            17.54,
+            42.03
+          ],
+          [
+            -17.54,
+            1.97
+          ],
+          [
+            17.54,
+            42.03
+          ],
+          [
+            -17.53,
+            42.04
+          ]
+        ],
+        "area_mm2": 1405
+      }
+    },
+    {
+      "key": "0,0,1,0,1,0,-1,0,0",
+      "lens_quat": [
+        0,
+        0.707107,
+        0,
+        0.707107
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          84,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            17.54,
+            -1.97
+          ],
+          [
+            -17.55,
+            -2
+          ],
+          [
+            -17.54,
+            -42.03
+          ],
+          [
+            17.54,
+            -1.97
+          ],
+          [
+            -17.54,
+            -42.03
+          ],
+          [
+            17.53,
+            -42.04
+          ]
+        ],
+        "area_mm2": 1405
+      }
+    },
+    {
+      "key": "0,0,1,0,-1,0,1,0,0",
+      "lens_quat": [
+        -0.707107,
+        0,
+        -0.707107,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          84,
+          89.4
+        ],
+        "height_mm": 89.4,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2800,
+        "overhang_pct": 16.2,
+        "bed_contact_mm2": 1540,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            17.54,
+            -1.97
+          ],
+          [
+            -17.55,
+            -2
+          ],
+          [
+            -17.54,
+            -42.03
+          ],
+          [
+            17.54,
+            -1.97
+          ],
+          [
+            -17.54,
+            -42.03
+          ],
+          [
+            17.53,
+            -42.04
+          ],
+          [
+            17.54,
+            1.97
+          ],
+          [
+            17.5,
+            42.05
+          ],
+          [
+            -17.54,
+            42.03
+          ],
+          [
+            17.54,
+            1.97
+          ],
+          [
+            -17.54,
+            42.03
+          ],
+          [
+            -17.53,
+            1.96
+          ]
+        ],
+        "area_mm2": 2809.8
+      }
+    },
+    {
+      "key": "0,0,-1,1,0,0,0,-1,0",
+      "lens_quat": [
+        -0.5,
+        -0.5,
+        0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          89.4,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 3129,
+        "overhang_pct": 18.2,
+        "bed_contact_mm2": 280,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            -17.53,
+            40.74
+          ],
+          [
+            -17.5,
+            10.25
+          ],
+          [
+            17.53,
+            10.26
+          ],
+          [
+            -17.53,
+            40.74
+          ],
+          [
+            17.53,
+            10.26
+          ],
+          [
+            17.54,
+            40.73
+          ],
+          [
+            17.54,
+            -44.73
+          ],
+          [
+            17.5,
+            6.35
+          ],
+          [
+            -17.54,
+            6.33
+          ],
+          [
+            17.54,
+            -44.73
+          ],
+          [
+            -17.54,
+            6.33
+          ],
+          [
+            -17.53,
+            -44.74
+          ]
+        ],
+        "area_mm2": 2858.7
+      }
+    },
+    {
+      "key": "0,0,-1,-1,0,0,0,1,0",
+      "lens_quat": [
+        0.5,
+        -0.5,
+        -0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          89.4,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2989,
+        "overhang_pct": 17.3,
+        "bed_contact_mm2": 420,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            17.55,
+            -44.72
+          ],
+          [
+            17.5,
+            40.75
+          ],
+          [
+            -17.55,
+            40.72
+          ],
+          [
+            17.55,
+            -44.72
+          ],
+          [
+            -17.55,
+            40.72
+          ],
+          [
+            -17.52,
+            -44.75
+          ]
+        ],
+        "area_mm2": 2996.1
+      }
+    },
+    {
+      "key": "0,0,1,-1,0,0,0,-1,0",
+      "lens_quat": [
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          89.4,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2989,
+        "overhang_pct": 17.3,
+        "bed_contact_mm2": 420,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            -17.55,
+            44.72
+          ],
+          [
+            -17.5,
+            -40.75
+          ],
+          [
+            17.55,
+            -40.72
+          ],
+          [
+            -17.55,
+            44.72
+          ],
+          [
+            17.55,
+            -40.72
+          ],
+          [
+            17.52,
+            44.75
+          ]
+        ],
+        "area_mm2": 2996.1
+      }
+    },
+    {
+      "key": "0,0,1,1,0,0,0,1,0",
+      "lens_quat": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          35,
+          89.4,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 3129,
+        "overhang_pct": 18.2,
+        "bed_contact_mm2": 280,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            17.53,
+            -10.26
+          ],
+          [
+            -17.55,
+            -10.3
+          ],
+          [
+            -17.53,
+            -40.74
+          ],
+          [
+            17.53,
+            -10.26
+          ],
+          [
+            -17.53,
+            -40.74
+          ],
+          [
+            17.54,
+            -40.73
+          ],
+          [
+            17.54,
+            44.73
+          ],
+          [
+            -17.55,
+            44.7
+          ],
+          [
+            -17.54,
+            -6.33
+          ],
+          [
+            17.54,
+            44.73
+          ],
+          [
+            -17.54,
+            -6.33
+          ],
+          [
+            17.53,
+            -6.34
+          ]
+        ],
+        "area_mm2": 2859
+      }
+    },
+    {
+      "key": "0,1,0,0,0,-1,-1,0,0",
+      "lens_quat": [
+        0.5,
+        0.5,
+        -0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          84,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "0,1,0,0,0,1,1,0,0",
+      "lens_quat": [
+        -0.5,
+        -0.5,
+        -0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          84,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "0,-1,0,0,0,1,-1,0,0",
+      "lens_quat": [
+        -0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          84,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "0,-1,0,0,0,-1,1,0,0",
+      "lens_quat": [
+        0.5,
+        -0.5,
+        0.5,
+        0.5
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          84,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [],
+        "area_mm2": 0
+      }
+    },
+    {
+      "key": "0,1,0,-1,0,0,0,0,1",
+      "lens_quat": [
+        0,
+        0,
+        -0.707107,
+        0.707107
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          35,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2989,
+        "overhang_pct": 17.3,
+        "bed_contact_mm2": 420,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            44.72,
+            17.55
+          ],
+          [
+            -40.75,
+            17.5
+          ],
+          [
+            -40.72,
+            -17.55
+          ],
+          [
+            44.72,
+            17.55
+          ],
+          [
+            -40.72,
+            -17.55
+          ],
+          [
+            44.75,
+            -17.52
+          ]
+        ],
+        "area_mm2": 2996.1
+      }
+    },
+    {
+      "key": "0,1,0,1,0,0,0,0,-1",
+      "lens_quat": [
+        -0.707107,
+        -0.707107,
+        0,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          35,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 3129,
+        "overhang_pct": 18.2,
+        "bed_contact_mm2": 280,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            40.74,
+            17.53
+          ],
+          [
+            10.25,
+            17.5
+          ],
+          [
+            10.26,
+            -17.53
+          ],
+          [
+            40.74,
+            17.53
+          ],
+          [
+            10.26,
+            -17.53
+          ],
+          [
+            40.73,
+            -17.54
+          ],
+          [
+            -44.73,
+            -17.54
+          ],
+          [
+            6.35,
+            -17.5
+          ],
+          [
+            6.33,
+            17.54
+          ],
+          [
+            -44.73,
+            -17.54
+          ],
+          [
+            6.33,
+            17.54
+          ],
+          [
+            -44.74,
+            17.53
+          ]
+        ],
+        "area_mm2": 2858.7
+      }
+    },
+    {
+      "key": "0,-1,0,1,0,0,0,0,1",
+      "lens_quat": [
+        0,
+        0,
+        0.707107,
+        0.707107
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          35,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 3129,
+        "overhang_pct": 18.2,
+        "bed_contact_mm2": 280,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            44.73,
+            -17.54
+          ],
+          [
+            44.7,
+            17.55
+          ],
+          [
+            -6.33,
+            17.54
+          ],
+          [
+            44.73,
+            -17.54
+          ],
+          [
+            -6.33,
+            17.54
+          ],
+          [
+            -6.34,
+            -17.53
+          ],
+          [
+            -10.26,
+            -17.53
+          ],
+          [
+            -10.3,
+            17.55
+          ],
+          [
+            -40.74,
+            17.53
+          ],
+          [
+            -10.26,
+            -17.53
+          ],
+          [
+            -40.74,
+            17.53
+          ],
+          [
+            -40.73,
+            -17.54
+          ]
+        ],
+        "area_mm2": 2859
+      }
+    },
+    {
+      "key": "0,-1,0,-1,0,0,0,0,-1",
+      "lens_quat": [
+        0.707107,
+        -0.707107,
+        0,
+        0
+      ],
+      "metrics": {
+        "dims_mm": [
+          89.4,
+          35,
+          84
+        ],
+        "height_mm": 84,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 2989,
+        "overhang_pct": 17.3,
+        "bed_contact_mm2": 420,
+        "needs_support": true,
+        "faces": 52
+      },
+      "footprint": {
+        "tris": [
+          [
+            -44.72,
+            -17.55
+          ],
+          [
+            40.75,
+            -17.5
+          ],
+          [
+            40.72,
+            17.55
+          ],
+          [
+            -44.72,
+            -17.55
+          ],
+          [
+            40.72,
+            17.55
+          ],
+          [
+            -44.75,
+            17.52
+          ]
+        ],
+        "area_mm2": 2996.1
+      }
+    }
+  ],
+  "glb_url": "https://forge.banksyai.com/jobs/20261028-163647-8922/model.glb?v=1",
+  "stl_url": "https://forge.banksyai.com/jobs/20261028-163647-8922/model.stl?v=1",
+  "llm_seconds": 2.2,
+  "render_seconds": 0.01,
+  "exports": [
+    {
+      "n": 1,
+      "filename": "forge_headphone_desk_hook_20261028-163647-8922_v1.stl",
+      "quat": [
+        -0.707107,
+        0,
+        0,
+        0.707107
+      ],
+      "euler_deg": null,
+      "scale": 1,
+      "metrics": {
+        "dims_mm": [
+          84,
+          89.4,
+          35
+        ],
+        "height_mm": 35,
+        "volume_cm3": 30.44,
+        "watertight": true,
+        "overhang_area_mm2": 0,
+        "overhang_pct": 0,
+        "bed_contact_mm2": 869.6,
+        "needs_support": false,
+        "faces": 52
+      },
+      "time": 1793219808.4741979
+    }
+  ]
+}

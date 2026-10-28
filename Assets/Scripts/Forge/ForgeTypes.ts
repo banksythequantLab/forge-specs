@@ -19,6 +19,38 @@ export interface ForgeSuggestion {
   /** Already in Lens frame, as [x, y, z, w]. Apply as the part's local rotation. */
   lens_quat: number[]
   metrics: ForgeMetrics
+  /** Which `orientations[]` row the suggestion is. See ForgeOrientation.key. */
+  key?: string
+}
+
+/**
+ * Where supports would be printed for one orientation: the overhanging faces
+ * projected straight down onto the bed, as a flat triangle list.
+ *
+ * `tris` is three [x, y] points per triangle, in millimetres, relative to the
+ * part's footprint centre, in the server's bed frame — so a Lens-space point is
+ * `(x / 10, -y / 10)` in the desk plane, times the current scale factor.
+ */
+export interface ForgeFootprint {
+  tris: number[][]
+  area_mm2: number
+}
+
+/**
+ * One of the 24 axis-aligned orientations Flip and Turn can reach. `/design`
+ * returns all of them, so the readout stays honest after a manual Flip without
+ * another network call — and it works offline.
+ */
+export interface ForgeOrientation {
+  /**
+   * The part's rotation relative to its loaded orientation, as a row-major 3x3
+   * matrix with every entry rounded to an integer and joined with commas.
+   * As loaded that is "1,0,0,0,1,0,0,0,1".
+   */
+  key: string
+  lens_quat: number[]
+  metrics: ForgeMetrics
+  footprint: ForgeFootprint
 }
 
 export interface ForgeExport {
@@ -39,6 +71,8 @@ export interface ForgeDesign {
   dims_mm: number[]
   metrics: ForgeMetrics
   suggested: ForgeSuggestion
+  /** All 24 axis-aligned orientations. Absent on a pre-orientations payload. */
+  orientations?: ForgeOrientation[]
   glb_url: string
   stl_url: string
   exports?: ForgeExport[]

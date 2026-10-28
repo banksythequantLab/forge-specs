@@ -53,3 +53,5 @@ leaf_plugin_settings.json
 .virtual-scene.runtime.json
 tempAssetGen/
 
+tools/tmp/
+

@@ -24,6 +24,16 @@ export const Layout = {
   /** How far along the front edge the part may be slid, measured from centre. */
   edgeSlideLimit: 52,
 
+  /**
+   * How far above the desk the part's invisible grab box may reach.
+   *
+   * It is a cap, not a size: the box hugs the part otherwise. An 89 mm part's
+   * full-height box crosses the seated sightline to the middle button and the
+   * preview interactor refuses to aim at Smaller through it. See
+   * ForgePart.fitGrab.
+   */
+  grabMaxHeight: 6,
+
   /** Prompt chips: three 12 x 4 cm slabs lying flat on the desk. */
   chipSize: { w: 12, d: 4 },
   chipZ: -48,
@@ -32,27 +42,33 @@ export const Layout = {
   surfaceLift: 0.35,
 
   /**
-   * Readout plate, to the left of the part.
+   * Readout plate — a floating upright "tag", off the desk entirely.
    *
-   * The brief asked for 12 x 5 cm lying flat. Flat text at the desk edge is
-   * foreshortened to about half its height from a seated eye, which put every
-   * line under the ~1 degree legibility guide (see the build log). The plate is
-   * therefore larger and propped up towards the user, which removes almost all
-   * of the foreshortening and lets three big lines carry the readout.
+   * Build 2 had it lying on the desk, leaned back 40 degrees. Even leaned, the
+   * desk gives it nowhere to go: at the edge the display is only ~50 cm wide,
+   * and the plate and the 28 cm button block had to share that, which capped
+   * every line at about 0.8 degrees of visual angle — under the comfort guide.
    *
-   * It sits level with the button block rather than up at the edge: close to
-   * the edge the display is only about 50 cm wide and a plate this size falls
-   * off the left of the view.
+   * Taking it off the desk removes the competition. It now hangs above and to
+   * the left of the part, tilted to face the seated eye (`plateFaceTarget`), so
+   * the text is read nearly face-on and each line can be 1.6 cm — about
+   * 1.3 degrees at the 70 cm the plate ends up from the eye.
    *
-   * 18 cm at x = -17 is as large and as far left as the plate can go and still
-   * be wholly in view from the seated pose below. That width is what caps the
-   * line heights in ReadoutLine — see the build log for the trade-off.
+   * Tuned so that from the seated pose it overlaps no button, no chip and not
+   * the part: the sightline through its lower-right corner lands at about
+   * (x -11, z -73) on the desk, behind the back row of buttons.
    */
-  plateSize: { w: 18, d: 12 },
-  plateX: -17,
-  plateZ: -54,
-  /** Degrees the plate leans back towards the user. 0 would lie flat. */
-  plateTiltDeg: 40,
+  plateSize: { w: 14, h: 8 },
+  plateX: -15,
+  /** Height above the desk top, not above the floor. */
+  plateAboveDesk: 16,
+  plateZ: -44,
+  /**
+   * The point the plate's face is aimed at — the seated eye. No billboarding:
+   * the tilt is authored once at build time from these numbers, so the plate
+   * never swims when the head moves.
+   */
+  plateFaceTarget: { x: 0, y: -35, z: 20 },
 
   /**
    * Button block: two rows of three, flat on the desk, centred behind the part.
@@ -125,24 +141,69 @@ export const PreviewPose = {
 }
 
 /**
- * Line heights on the readout plate, in centimetres.
+ * Line heights on the readout plate, in centimetres, and where each line sits
+ * on the plate face.
  *
- * Three big lines carry the answer — what it is, how big it is, how much of it
- * would need support — with a small footer for export status and the offline
- * marker. Anything longer than `maxWidth` is shrunk to fit rather than spilling
- * off the plate.
+ * `z` is the line's position down the plate face in plate-local coordinates:
+ * the face reads along local -Z (up) to +Z (down), so -4 is the top edge of an
+ * 8 cm tag and +4 is the bottom.
+ *
+ * The three main lines are 1.3 cm. At the 70 cm the plate sits from a seated
+ * eye that is 1.06 degrees of visual angle — over the ~1 degree comfort guide
+ * that build 2's desk-bound plate could not reach, and as large as an 8 cm tag
+ * can carry: a two-line part name is 3.1 cm of it once the real line pitch is
+ * counted (see TEXT_LINE_PITCH), and the dimensions line is 15 characters
+ * wide, which caps it at about 1.3 cm on a 13 cm text width.
  */
 export const ReadoutLine = {
-  // Sized so each line fits the 20 cm plate on one line at TEXT_ASPECT 0.9 —
-  // "74 x 28 x 89 mm" and "Overhang 16.6%" are the longest the plate has to
-  // hold. The part name is the one line allowed to wrap.
-  title: 1.2,
-  dims: 1.15,
-  overhang: 1.15,
-  status: 0.85,
-  offline: 0.85,
-  /** Plate is 18 cm wide; leave a 1 cm margin each side. */
-  maxWidth: 16
+  /** Part name. Allowed to wrap, but never past two lines. */
+  title: 1.3,
+  titleZ: -2.05,
+  titleMaxLines: 2,
+
+  dims: 1.3,
+  dimsZ: 0.4,
+
+  overhang: 1.3,
+  overhangZ: 1.95,
+
+  /**
+   * The footer is one row carrying two things side by side: what the export is
+   * doing on the left, and which path produced the part on the right. It is
+   * deliberately secondary — about 0.7 degrees — and nothing in the readout
+   * depends on reading it at a glance.
+   */
+  footerHeight: 1.0,
+  footerZ: 3.45,
+  statusX: -3.3,
+  statusMaxWidth: 6.4,
+  sourceX: 3.3,
+  sourceMaxWidth: 6.4,
+  /**
+   * The footer gets its own floor, below the main lines': "live design" needs
+   * 0.85 cm to stay on one line in half a 14 cm plate, and a footer that wraps
+   * onto a second line falls off the bottom of the tag.
+   */
+  footerMinHeight: 0.8,
+
+  /** Plate is 14 cm wide; leave half a centimetre each side. */
+  maxWidth: 13,
+  /** No line is ever shrunk below this, or it stops being readable at all. */
+  minHeight: 1.1
+}
+
+/**
+ * The red "where supports would go" patch drawn flat on the desk under the
+ * part, from the current orientation row's `footprint.tris`.
+ *
+ * The overhanging faces themselves point down and are invisible from a seated
+ * eye; this is the same information turned into something you can see.
+ */
+export const Footprint = {
+  /** Lifted off the desk so it never z-fights the desk top. */
+  liftCm: 0.3,
+  /** #ff4b4b at 60%, matching the red on the faces. */
+  color: new vec4(1.0, 0.294, 0.294, 0.6)
 }
 
 /** Colours. The display is additive — nothing here is black. */
@@ -180,8 +241,16 @@ export const Backend = {
 export const Timing = {
   /** Flip / Turn / Auto-orient animation length — a third of a second. */
   rotateSeconds: 0.33,
-  /** How long the designing ring takes to fill when answering from cache. */
-  designRingSeconds: 2.4,
+  /**
+   * The designing ring sweeps while the service is thinking — indeterminate,
+   * because /design takes 2-5 s and a fixed fill would be a lie — then fills
+   * in this long once the answer is actually in hand.
+   */
+  designRingFillSeconds: 0.4,
+  /** Seconds for one full revolution of the indeterminate sweep. */
+  designRingSweepSeconds: 1.1,
+  /** How much of the ring the sweep lights at once, 0..1. */
+  designRingSweepArc: 0.25,
   /** Red overhang clears this long after a successful export. */
   overhangClearDelay: 2.0,
   scaleStep: 0.15,

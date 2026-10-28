@@ -1,11 +1,11 @@
 import { Interactable } from "InteractionKit.lspkg/Components/Interaction/Interactable/Interactable"
 import { DragInteractorEvent, InteractorEvent } from "InteractionKit.lspkg/Core/Interactor/InteractorEvent"
 
-import { Backend, CHIPS, Layout, Palette, ReadoutLine, Timing } from "./ForgeConfig"
-import { BuildKit, FLAT_ON_DESK, SegmentRing, fitLabel, makeArrow, makeInteractive, makeLabel, makeObject, makePanel } from "./ForgeBuild"
+import { CHIPS, Footprint, Layout, Palette, ReadoutLine, Timing } from "./ForgeConfig"
+import { BuildKit, FLAT_ON_DESK, FootprintMesh, SegmentRing, fitLabel, makeArrow, makeInteractive, makeLabel, makeObject, makePanel } from "./ForgeBuild"
 import { ForgeBackend } from "./ForgeBackend"
 import { ForgePart } from "./ForgePart"
-import { ForgeDesign, ForgeJob } from "./ForgeTypes"
+import { ForgeDesign, ForgeJob, ForgeOrientation } from "./ForgeTypes"
 
 type Phase = "idle" | "designing" | "ready" | "exporting"
 
@@ -66,16 +66,24 @@ export class ForgeApp extends BaseScriptComponent {
   private dimsText: Text
   private overhangText: Text
   private statusText: Text
-  private offlineText: Text
+  /** Footer cell saying which path produced the part. See sourceLabel(). */
+  private sourceText: Text
   private printerFileText: Text
 
+  /** The red "where supports would go" patch on the desk under the part. */
+  private footprint: FootprintMesh
+
   private designRingElapsed = 0
+  /** Time since the design arrived, for the ring's fill-on-arrival. */
+  private designFillElapsed = 0
   private exportRingElapsed = 0
   private exportRingTarget = 0
   private overhangVisible = true
   private overhangClearAt = -1
   private arrowActive = false
   private audio: AudioComponent | null = null
+  /** False on a SPECS device, where the room is real. See hidePreviewStandIns. */
+  private inEditor = true
 
   /** Named SIK targets, so LEAF scenarios can pinch exactly what a user would. */
   private targets: Map<string, Interactable> = new Map()
@@ -90,6 +98,11 @@ export class ForgeApp extends BaseScriptComponent {
 
   /** Unwrapped text of each readout line, before fitLabel wraps it to the plate. */
   private lineValues: Map<string, string> = new Map()
+
+  /** What the orientation readout was last rebuilt for. See syncOrientationReadout. */
+  private lastOrientationKey = ""
+  private lastFootprintScale = 0
+  private lastFootprintX = 0
 
   // ------------------------------------------------------------------------
 
@@ -122,12 +135,72 @@ export class ForgeApp extends BaseScriptComponent {
     this.buildArrow()
     this.buildAudio()
 
+    this.hidePreviewStandIns()
     this.setPhase("idle")
     this.backend.warm()
 
     // Expose a handle so LEAF scenarios can drive and inspect the Lens.
     ;(global as any).forge = this
     print("[Forge] ready - pinch a chip to design a part")
+  }
+
+  /**
+   * The desk, its legs, the printer, the printer's table and the pinch strip
+   * along the desk edge are **stand-ins for the preview only**.
+   *
+   * On a SPECS device the user's real desk is already there, and painting a
+   * grey slab over it is worse than painting nothing: it would float at the
+   * wrong height, hide the real edge, and tell the user the Lens does not know
+   * where their desk is. So everything that models the room is switched off
+   * anywhere but the editor, and what is left is the part, the readout, the
+   * buttons and the chips.
+   *
+   * What stays on device: `PrinterRingAnchor` and the chime parented to it,
+   * because the progress ring and the sound should still come from the
+   * direction of the real printer, and `DeskEdgeHighlight`, which marks where
+   * the part is clamped on a real edge just as usefully as on a virtual one.
+   *
+   * LEAF runs in the preview, so no scenario is affected by any of this.
+   *
+   * **Unverified.** Nothing in this build has run on hardware; on device the
+   * part lands at the x and z of the pinch that asked for it, but the desk
+   * plane's height is still the authored `Layout.deskTopY` rather than a
+   * WorldQuery hit on the real surface. That is the next thing to fix on a
+   * device, and it cannot be fixed without one.
+   */
+  private hidePreviewStandIns(): void {
+    this.inEditor = global.deviceInfoSystem.isEditor()
+    if (this.inEditor) return
+
+    // The runtime-built pinch strip along the virtual edge goes with the desk.
+    if (this.edgeTarget) this.edgeTarget.enabled = false
+
+    const keep = ["DeskEdgeHighlight", "PrinterRingAnchor"]
+    let hidden = 0
+    for (const rigName of ["DeskRig", "PrinterRig"]) {
+      const rig = this.findSibling(rigName)
+      if (!rig) continue
+      const count = rig.getChildrenCount()
+      for (let i = 0; i < count; i++) {
+        const child = rig.getChild(i)
+        if (keep.indexOf(child.name) >= 0) continue
+        child.enabled = false
+        hidden++
+      }
+    }
+    print("[Forge] not in the editor - hid " + hidden + " preview stand-ins")
+  }
+
+  /** A SceneObject by name among ForgeApp's own siblings (children of `Forge`). */
+  private findSibling(name: string): SceneObject | null {
+    const parent = this.getSceneObject().getParent()
+    if (!parent) return null
+    const count = parent.getChildrenCount()
+    for (let i = 0; i < count; i++) {
+      const child = parent.getChild(i)
+      if (child.name === name) return child
+    }
+    return null
   }
 
   // --- construction --------------------------------------------------------
@@ -230,43 +303,69 @@ export class ForgeApp extends BaseScriptComponent {
       this.targets.set("chip:" + chip.key, interactable)
       interactable.onHoverEnter.add(() => (slab.material.mainPass.baseColor = Palette.uiFillHover))
       interactable.onHoverExit.add(() => (slab.material.mainPass.baseColor = Palette.chipFill))
-      interactable.onTriggerEnd.add(() => this.requestPart(chip.key, chip.prompt))
+      interactable.onTriggerEnd.add((e: InteractorEvent) =>
+        this.requestPart(chip.key, chip.prompt, e.interactor.targetHitPosition)
+      )
     }
+  }
+
+  /**
+   * The rotation that aims the readout plate's face (its local +Y) at the
+   * seated eye, computed once from the authored pose rather than billboarded —
+   * a plate that chases the head swims around in peripheral vision.
+   *
+   * Pitch about X raises the face from flat towards the user; yaw about Y
+   * swings it across to account for the plate sitting off to the left.
+   */
+  private plateFacingRotation(): quat {
+    const target = Layout.plateFaceTarget
+    const dx = target.x - Layout.plateX
+    const dy = target.y - (Layout.deskTopY + Layout.plateAboveDesk)
+    const dz = target.z - Layout.plateZ
+    const horizontal = Math.sqrt(dx * dx + dz * dz)
+    const pitch = Math.atan2(horizontal, dy)
+    const yaw = Math.atan2(dx, dz)
+    return quat
+      .angleAxis(yaw, vec3.up())
+      .multiply(quat.angleAxis(pitch, vec3.right()))
   }
 
   private buildPartUi(): void {
     this.partUiRoot = makeObject(this.uiRoot, "PartControls")
 
-    // --- readout plate, propped up on the desk to the left of the part ----
+    // --- readout plate: a floating upright tag above and left of the part --
     //
-    // Three big lines carry the readout — name, dimensions, overhang — with a
-    // small footer for the export status and the offline marker. The plate
-    // leans back towards the user so the text is read nearly face-on instead
-    // of at the grazing angle a flat plate gives from a seated eye.
-    const tilt = (Layout.plateTiltDeg * Math.PI) / 180
-    // Leaning the plate drops its near edge; lift it so that edge still rests
-    // on the desk rather than sinking through it.
-    const plateLift = (Layout.plateSize.d / 2) * Math.sin(tilt) + Layout.surfaceLift
+    // It is off the desk entirely (build 2 had it lying on the surface), which
+    // is what lets each of the three main lines be 1.6 cm — about 1.3 degrees
+    // of visual angle from the seated eye. See Layout.plateSize for why.
+    //
+    // The tag is a panel whose thin axis (local +Y) is aimed at the seated eye,
+    // so FLAT_ON_DESK still orients the labels correctly against its face: the
+    // text faces local +Y and reads from local -Z (top) down to +Z (bottom).
     const plate = makePanel(
       this.kit,
       this.partUiRoot,
       "ReadoutPlate",
-      new vec3(Layout.plateSize.w, 0.6, Layout.plateSize.d),
-      new vec3(Layout.plateX, Layout.deskTopY + plateLift, Layout.plateZ),
+      new vec3(Layout.plateSize.w, 0.6, Layout.plateSize.h),
+      new vec3(Layout.plateX, Layout.deskTopY + Layout.plateAboveDesk, Layout.plateZ),
       Palette.plateFill,
-      quat.fromEulerAngles(tilt, 0, 0)
+      this.plateFacingRotation()
     )
     this.plateMaterials.push(plate.material)
 
-    // Labels sit just proud of the plate face and lean with it. More negative
-    // local z is higher up the face, because FLAT_ON_DESK points text away.
+    // Labels sit just proud of the plate face. More negative local z is higher
+    // up the face, because FLAT_ON_DESK points text away from the user.
     const lineY = 0.6
     const pw = ReadoutLine.maxWidth
-    this.titleText = makeLabel(this.kit, plate.root, "Readout Title", "", new vec3(0, lineY, -3.8), ReadoutLine.title, Palette.textOnPlate, FLAT_ON_DESK, pw)
-    this.dimsText = makeLabel(this.kit, plate.root, "Readout Dims", "", new vec3(0, lineY, -0.9), ReadoutLine.dims, Palette.accent, FLAT_ON_DESK, pw)
-    this.overhangText = makeLabel(this.kit, plate.root, "Readout Overhang", "", new vec3(0, lineY, 1.6), ReadoutLine.overhang, Palette.textOnPlate, FLAT_ON_DESK, pw)
-    this.statusText = makeLabel(this.kit, plate.root, "Readout Status", "", new vec3(0, lineY, 3.6), ReadoutLine.status, Palette.textOnPlate, FLAT_ON_DESK, pw)
-    this.offlineText = makeLabel(this.kit, plate.root, "Readout Offline", "", new vec3(0, lineY, 4.9), ReadoutLine.offline, Palette.accent, FLAT_ON_DESK, pw)
+    const minH = ReadoutLine.minHeight
+    this.titleText = makeLabel(this.kit, plate.root, "Readout Title", "", new vec3(0, lineY, ReadoutLine.titleZ), ReadoutLine.title, Palette.textOnPlate, FLAT_ON_DESK, pw, ReadoutLine.titleMaxLines, minH)
+    this.dimsText = makeLabel(this.kit, plate.root, "Readout Dims", "", new vec3(0, lineY, ReadoutLine.dimsZ), ReadoutLine.dims, Palette.accent, FLAT_ON_DESK, pw, 1, minH)
+    this.overhangText = makeLabel(this.kit, plate.root, "Readout Overhang", "", new vec3(0, lineY, ReadoutLine.overhangZ), ReadoutLine.overhang, Palette.textOnPlate, FLAT_ON_DESK, pw, 1, minH)
+
+    // Footer: one row, two cells. What the export is doing on the left, which
+    // path produced the part on the right.
+    this.statusText = makeLabel(this.kit, plate.root, "Readout Status", "", new vec3(ReadoutLine.statusX, lineY, ReadoutLine.footerZ), ReadoutLine.footerHeight, Palette.textOnPlate, FLAT_ON_DESK, ReadoutLine.statusMaxWidth, 1, ReadoutLine.footerMinHeight)
+    this.sourceText = makeLabel(this.kit, plate.root, "Readout Source", "", new vec3(ReadoutLine.sourceX, lineY, ReadoutLine.footerZ), ReadoutLine.footerHeight, Palette.accent, FLAT_ON_DESK, ReadoutLine.sourceMaxWidth, 1, ReadoutLine.footerMinHeight)
 
     // --- button block, two rows of three ----------------------------------
     // `label` names the target for LEAF; `caption` is what the button reads.
@@ -319,6 +418,10 @@ export class ForgeApp extends BaseScriptComponent {
     )
     this.designRing.object.getTransform().setLocalRotation(FLAT_ON_DESK)
     this.designRing.setEnabled(false)
+
+    // The red support patch lives on the desk, not on the part, so it stays
+    // flat and visible however the part is turned.
+    this.footprint = new FootprintMesh(this.kit, this.uiRoot, "SupportFootprint", Footprint.color)
 
     const anchor = this.printerRingAnchor ?? this.uiRoot
     this.printerRing = new SegmentRing(
@@ -383,18 +486,28 @@ export class ForgeApp extends BaseScriptComponent {
     const showPartUi = phase === "ready" || phase === "exporting"
     this.partUiRoot.enabled = showPartUi
     this.part.anchor.enabled = showPartUi
+    if (this.footprint) this.footprint.setEnabled(showPartUi && this.overhangVisible)
     this.designRing.setEnabled(phase === "designing")
   }
 
-  /** Pinch on a prompt chip. */
-  public requestPart(chipKey: string, prompt: string): void {
+  /**
+   * Pinch on a prompt chip. `hit` is where the pinch landed, which off the
+   * editor is where the part is placed — there is no virtual desk edge to
+   * stand it on. In the preview the authored edge wins and `hit` is ignored.
+   */
+  public requestPart(chipKey: string, prompt: string, hit?: vec3): void {
     if (this.phase === "designing") return
     print("[Forge] requesting: " + prompt)
+
+    if (!this.inEditor && hit) this.part.setLandingPoint(hit.x, hit.z)
 
     this.part.clear()
     this.pendingJob = null
     this.pendingInstance = null
     this.designRingElapsed = 0
+    this.designFillElapsed = 0
+    this.lastOrientationKey = ""
+    this.footprint.clear()
     this.designRing.object.getTransform().setLocalPosition(
       new vec3(this.part.edgeX, Layout.deskTopY + Layout.surfaceLift, Layout.deskFrontZ)
     )
@@ -444,8 +557,12 @@ export class ForgeApp extends BaseScriptComponent {
     this.printerFileText.text = ""
     this.setArrowActive(false)
     this.setPhase("ready")
-    this.setLine(this.statusText, "", ReadoutLine.status)
+    this.setStatus("")
     this.refreshReadout("")
+    this.lastOrientationKey = this.part.rotationKey
+    this.lastFootprintScale = this.part.scaleFactor
+    this.lastFootprintX = this.part.edgeX
+    this.refreshFootprint()
     print(
       "[Forge] part landed: " +
         job.design.part.name +
@@ -453,8 +570,12 @@ export class ForgeApp extends BaseScriptComponent {
         job.design.dims_mm.join(" x ") +
         " mm, rendered height " +
         this.part.renderedHeightCm.toFixed(2) +
-        " cm" +
-        (job.offline ? " (offline copy)" : "")
+        " cm, overhang " +
+        this.currentOverhangPct().toFixed(1) +
+        "% (" +
+        this.footprint.count +
+        " support triangles), " +
+        this.sourceLabel(job)
     )
   }
 
@@ -503,15 +624,14 @@ export class ForgeApp extends BaseScriptComponent {
   public onAutoOrient(): void {
     const job = this.part.currentJob
     if (!job) return
-    this.setLine(this.statusText, "orienting...", ReadoutLine.status)
+    this.setStatus("orienting...")
     this.backend.autoOrient(job, this.part.scaleFactor).then((suggestion) => {
       // The suggestion has landed, so the progress word goes away again.
-      this.setLine(this.statusText, "", ReadoutLine.status)
+      this.setStatus("")
+      // The plate and the red patch both follow from the rotation itself now:
+      // once the animation settles, the part's key picks out the row and the
+      // readout reads that row's figure. `suggested.key` is just this row.
       this.part.rotateToArray(suggestion.lens_quat)
-      // The suggested orientation is the one with no overhang, so the plate
-      // should read the backend's figure for that orientation.
-      this.suggestedOverhangPct = suggestion.metrics ? suggestion.metrics.overhang_pct : 0
-      this.usingSuggested = true
       this.showOverhangAgain()
       this.refreshReadout("")
     })
@@ -522,7 +642,7 @@ export class ForgeApp extends BaseScriptComponent {
     if (!job || this.phase === "exporting") return
 
     this.setPhase("exporting")
-    this.setLine(this.statusText, "writing...", ReadoutLine.status)
+    this.setStatus("writing...")
     this.exportRingElapsed = 0
     this.exportRingTarget = 0
     this.printerRing.setProgress(0)
@@ -538,12 +658,15 @@ export class ForgeApp extends BaseScriptComponent {
 
   private onExportFinished(): void {
     this.setPhase("ready")
-    this.setLine(this.statusText, this.lastFilename, ReadoutLine.status)
+    // The plate footer says what happened; the filename itself is shown large
+    // under the printer ring, where it is actually readable.
+    this.setStatus("saved")
     this.printerFileText.text = this.lastFilename
     this.printerRing.setColors(Palette.ok, Palette.ok)
     // The decision is made, so the red clears shortly after.
     this.overhangClearAt = getTime() + Timing.overhangClearDelay
-    this.refreshReadout(this.lastFilename)
+    // Empty status, so the "saved" set above survives the refresh.
+    this.refreshReadout("")
 
     if (!this.isLookingAtPrinter()) {
       this.setArrowActive(true)
@@ -560,33 +683,135 @@ export class ForgeApp extends BaseScriptComponent {
 
   // --- overhang ------------------------------------------------------------
 
-  private usingSuggested = false
-  private suggestedOverhangPct = 0
-
   private showOverhangAgain(): void {
     this.overhangVisible = true
     this.overhangClearAt = -1
   }
 
   /**
-   * The plate shows the backend's overhang figure for the current orientation.
-   * The red on the model is computed in the Lens from face angles, so the two
-   * are a deliberate cross-check of each other.
+   * The row of `orientations[]` the part is currently sitting in.
+   *
+   * Flip and Turn only ever reach the 24 axis-aligned orientations, and
+   * `/design` hands all of them over up front, so the readout stays honest
+   * after a manual Flip with no network call at all — which is the whole point
+   * of the table. Build 2 only updated the figure on Auto-orient, which was
+   * wrong the moment anyone pressed Flip.
+   *
+   * Returns null if the payload predates the table, or the part has been
+   * rotated somewhere that is not axis-aligned (mid-animation).
+   */
+  private currentOrientation(): ForgeOrientation | null {
+    const job = this.part.currentJob
+    if (!job || !job.design.orientations) return null
+    const key = this.part.rotationKey
+    for (const row of job.design.orientations) {
+      if (row.key === key) return row
+    }
+    return null
+  }
+
+  /**
+   * The backend's overhang figure for the orientation the part is in now.
+   *
+   * The red on the model is computed in the Lens from face angles; this comes
+   * from the server's own mesh analysis. The two are a deliberate cross-check.
    */
   private currentOverhangPct(): number {
     const job = this.part.currentJob
     if (!job) return 0
-    if (this.usingSuggested) return this.suggestedOverhangPct
+    const row = this.currentOrientation()
+    if (row) return row.metrics.overhang_pct
+    // No table, or mid-rotation: fall back to the figure for the part as loaded.
     return job.design.metrics.overhang_pct
+  }
+
+  /**
+   * Redraws the red support patch on the desk from the current orientation row.
+   *
+   * The overhanging faces point down, so from the chair they are invisible
+   * however red they are. This is the same information laid flat where it can
+   * be seen: the faces projected onto the bed, under the part, at the part's
+   * current size. An orientation that needs no support draws nothing.
+   */
+  private refreshFootprint(): void {
+    if (!this.footprint) return
+    const row = this.currentOrientation()
+    const bounds = this.part.worldBounds()
+    if (!row || !bounds || !this.part.hasPart) {
+      this.footprint.clear()
+      return
+    }
+
+    this.footprint.setTriangles(row.footprint ? row.footprint.tris : [], this.part.scaleFactor)
+
+    // Centred on the part's current footprint centre, flat on the desk.
+    this.footprint.object
+      .getTransform()
+      .setLocalPosition(
+        new vec3(
+          (bounds.min.x + bounds.max.x) / 2,
+          Layout.deskTopY + Footprint.liftCm,
+          (bounds.min.z + bounds.max.z) / 2
+        )
+      )
+    this.footprint.setEnabled(this.overhangVisible)
   }
 
   // --- readout -------------------------------------------------------------
 
-  /** Sets a readout line and re-fits it, so long values shrink instead of spilling. */
-  private setLine(text: Text, value: string, heightCm: number): void {
+  /** Sets a readout line and re-fits it, so long values wrap instead of spilling. */
+  private setLine(
+    text: Text,
+    value: string,
+    heightCm: number,
+    maxWidthCm: number = ReadoutLine.maxWidth,
+    maxLines: number = 1,
+    minHeightCm: number = ReadoutLine.minHeight
+  ): void {
     this.lineValues.set(text.getSceneObject().name, value)
     text.text = value
-    fitLabel(text, value, heightCm, ReadoutLine.maxWidth)
+    fitLabel(text, value, heightCm, maxWidthCm, maxLines, minHeightCm)
+  }
+
+  /** The footer's left cell: what the export is doing. */
+  private setStatus(value: string): void {
+    this.setLine(
+      this.statusText,
+      value,
+      ReadoutLine.footerHeight,
+      ReadoutLine.statusMaxWidth,
+      1,
+      ReadoutLine.footerMinHeight
+    )
+  }
+
+  /** The footer's right cell. */
+  private setSource(value: string): void {
+    this.setLine(
+      this.sourceText,
+      value,
+      ReadoutLine.footerHeight,
+      ReadoutLine.sourceMaxWidth,
+      1,
+      ReadoutLine.footerMinHeight
+    )
+  }
+
+  /**
+   * The footer's right cell: which path actually produced this part.
+   *
+   * This is the honesty marker. A demo that always says "live design" is
+   * worthless the one time the service is down, so the plate says what really
+   * happened — the live model, the keyword designer the service falls back to
+   * when the model is not resident, or the copy shipped in the Lens.
+   */
+  private sourceLabel(job: ForgeJob): string {
+    if (job.offline) return "offline copy"
+    const source = job.design.part ? job.design.part.source : ""
+    if (!source) return ""
+    if (source.indexOf("ollama") === 0 || source.indexOf("cloud") === 0) return "live design"
+    if (source === "keywords") return "quick design"
+    return source
   }
 
   /** What a readout line says, ignoring any wrapping done to fit the plate. */
@@ -598,19 +823,19 @@ export class ForgeApp extends BaseScriptComponent {
   private refreshReadout(status: string): void {
     const job = this.part.currentJob
     if (!job) {
-      this.setLine(this.titleText, "", ReadoutLine.title)
+      this.setLine(this.titleText, "", ReadoutLine.title, ReadoutLine.maxWidth, ReadoutLine.titleMaxLines)
       this.setLine(this.dimsText, "", ReadoutLine.dims)
       this.setLine(this.overhangText, "", ReadoutLine.overhang)
-      this.setLine(this.statusText, "", ReadoutLine.status)
-      this.setLine(this.offlineText, "", ReadoutLine.offline)
+      this.setStatus("")
+      this.setSource("")
       return
     }
     const d = this.part.dimsMm
-    this.setLine(this.titleText, job.design.part.name, ReadoutLine.title)
+    this.setLine(this.titleText, job.design.part.name, ReadoutLine.title, ReadoutLine.maxWidth, ReadoutLine.titleMaxLines)
     this.setLine(this.dimsText, d[0].toFixed(0) + " x " + d[1].toFixed(0) + " x " + d[2].toFixed(0) + " mm", ReadoutLine.dims)
     this.setLine(this.overhangText, "Overhang " + this.currentOverhangPct().toFixed(1) + "%", ReadoutLine.overhang)
-    if (status) this.setLine(this.statusText, status, ReadoutLine.status)
-    this.setLine(this.offlineText, job.offline ? "offline copy" : "", ReadoutLine.offline)
+    if (status) this.setStatus(status)
+    this.setSource(this.sourceLabel(job))
   }
 
   // --- per-frame -----------------------------------------------------------
@@ -620,10 +845,23 @@ export class ForgeApp extends BaseScriptComponent {
 
     if (this.phase === "designing") {
       this.designRingElapsed += dt
-      const t = Math.min(1, this.designRingElapsed / Timing.designRingSeconds)
-      this.designRing.setProgress(t)
-      // The part lands once the ring is full and the design has arrived.
-      if (t >= 1 && this.pendingInstance) this.landPart()
+      if (!this.pendingInstance) {
+        // Nothing has arrived yet, and /design takes 2-5 s — so the ring
+        // sweeps rather than pretending to know how far along it is. Build 2
+        // filled it over a fixed 2.4 s, which was a guess dressed up as
+        // progress.
+        this.designRing.setSweep(
+          this.designRingElapsed / Timing.designRingSweepSeconds,
+          Timing.designRingSweepArc
+        )
+      } else {
+        // The design is in hand and the GLB is instantiated: fill the ring and
+        // let the part appear as it completes.
+        this.designFillElapsed += dt
+        const t = Math.min(1, this.designFillElapsed / Timing.designRingFillSeconds)
+        this.designRing.setProgress(t)
+        if (t >= 1) this.landPart()
+      }
     }
 
     if (this.phase === "exporting") {
@@ -640,8 +878,11 @@ export class ForgeApp extends BaseScriptComponent {
     if (this.overhangClearAt > 0 && getTime() >= this.overhangClearAt) {
       this.overhangVisible = false
       this.overhangClearAt = -1
+      this.footprint.setEnabled(false)
     }
     if (this.part.hasPart) this.part.updateOverhangUniforms(this.overhangVisible)
+
+    this.syncOrientationReadout()
 
     // The arrow goes as soon as the printer comes into view.
     if (this.arrowActive) {
@@ -653,6 +894,44 @@ export class ForgeApp extends BaseScriptComponent {
     }
 
     this.updateReadoutFade()
+  }
+
+  /**
+   * Keeps the overhang line and the red patch matched to the orientation the
+   * part is actually in.
+   *
+   * Driven from the rotation rather than from the button that caused it, so
+   * Flip, Turn, Auto-orient and a Bigger/Smaller step all land correctly for
+   * the same reason. Only rebuilt when something has actually changed, and
+   * never mid-animation — the key would not match a row anyway.
+   */
+  private syncOrientationReadout(): void {
+    if (!this.part.hasPart) {
+      this.lastOrientationKey = ""
+      return
+    }
+    if (this.part.isAnimating) return
+
+    const key = this.part.rotationKey
+    const scale = this.part.scaleFactor
+    const edgeX = this.part.edgeX
+    if (
+      key === this.lastOrientationKey &&
+      Math.abs(scale - this.lastFootprintScale) < 0.0001 &&
+      Math.abs(edgeX - this.lastFootprintX) < 0.01
+    ) {
+      return
+    }
+
+    const sizeChanged = key === this.lastOrientationKey
+    this.lastOrientationKey = key
+    this.lastFootprintScale = scale
+    this.lastFootprintX = edgeX
+
+    this.refreshFootprint()
+    // A Bigger/Smaller step has already refreshed the readout, and the
+    // percentage is scale-invariant, so only a new orientation needs the line.
+    if (!sizeChanged) this.refreshReadout("")
   }
 
   private updateReadoutFade(): void {
@@ -669,7 +948,7 @@ export class ForgeApp extends BaseScriptComponent {
     this.dimsText.enabled = visible
     this.overhangText.enabled = visible
     this.statusText.enabled = visible
-    this.offlineText.enabled = visible
+    this.sourceText.enabled = visible
   }
 
   private isLookingAtPrinter(): boolean {
@@ -725,7 +1004,12 @@ export class ForgeApp extends BaseScriptComponent {
       filename: this.lastFilename,
       statusText: this.lineValue(this.statusText),
       dimsText: this.lineValue(this.dimsText),
-      offlineText: this.lineValue(this.offlineText),
+      offlineText: this.lineValue(this.sourceText),
+      footerText: this.lineValue(this.sourceText),
+      printerFileText: this.printerFileText ? this.printerFileText.text : "",
+      orientationKey: this.part.hasPart ? this.part.rotationKey : "",
+      footprintTriangles: this.footprint ? this.footprint.count : 0,
+      footprintVisible: this.footprint ? this.footprint.object.enabled : false,
       chipsVisible: this.chipsRoot ? this.chipsRoot.enabled : false,
       designRingVisible: this.designRing ? this.designRing.object.enabled : false,
       printerRingVisible: this.printerRing ? this.printerRing.object.enabled : false,
@@ -757,11 +1041,13 @@ export class ForgeApp extends BaseScriptComponent {
     this.pendingJob = null
     this.pendingInstance = null
     this.lastFilename = ""
-    this.usingSuggested = false
-    this.suggestedOverhangPct = 0
+    this.lastOrientationKey = ""
+    this.lastFootprintScale = 0
+    this.footprint.clear()
     this.overhangVisible = true
     this.overhangClearAt = -1
     this.designRingElapsed = 0
+    this.designFillElapsed = 0
     this.exportRingElapsed = 0
     this.exportRingTarget = 0
     this.printerRing.setEnabled(false)

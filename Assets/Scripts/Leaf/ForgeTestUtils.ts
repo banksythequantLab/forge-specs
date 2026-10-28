@@ -22,7 +22,14 @@ export interface ForgeState {
   filename: string
   statusText: string
   dimsText: string
+  /** The footer's right cell: "live design" / "quick design" / "offline copy". */
   offlineText: string
+  footerText: string
+  printerFileText: string
+  /** The part's rotation as an orientations[] key. See forge-api.md. */
+  orientationKey: string
+  footprintTriangles: number
+  footprintVisible: boolean
   chipsVisible: boolean
   designRingVisible: boolean
   printerRingVisible: boolean

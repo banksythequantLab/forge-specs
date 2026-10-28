@@ -30,6 +30,8 @@ export class ForgePart {
   private userScale = 1
   /** Rotation relative to the loaded orientation. */
   private currentRotation: quat = quat.quatIdentity()
+  /** The depth the part sits at. The desk's front edge, unless a pinch moved it. */
+  private landingZ = Layout.deskFrontZ
 
   private animFrom: quat = quat.quatIdentity()
   private animTo: quat = quat.quatIdentity()
@@ -59,9 +61,19 @@ export class ForgePart {
     // oversized box would reach out in front of the part and swallow pinches
     // meant for the buttons behind it.
     const minSize = 3
+
+    // And never taller than Layout.grabMaxHeight above the desk, however tall
+    // the part is. A box that followed an 89 mm part all the way up sits
+    // exactly on the seated sightline to the middle button — the preview
+    // interactor reports "Blocked by PartGrabTarget" on Smaller — and the
+    // brief wants the button block left where it is. Grabbing a standing part
+    // near its base is what a hand does anyway.
+    const top = Math.min(bounds.max.y, Layout.deskTopY + Layout.grabMaxHeight)
+    const bottom = Math.min(bounds.min.y, top - minSize)
+
     const size = new vec3(
       Math.max(bounds.max.x - bounds.min.x, minSize),
-      Math.max(bounds.max.y - bounds.min.y, minSize),
+      Math.max(top - bottom, minSize),
       Math.max(bounds.max.z - bounds.min.z, minSize)
     )
     const shape = Shape.createBoxShape()
@@ -70,7 +82,7 @@ export class ForgePart {
 
     const centre = new vec3(
       (bounds.min.x + bounds.max.x) / 2,
-      (bounds.min.y + bounds.max.y) / 2,
+      (bottom + top) / 2,
       (bounds.min.z + bounds.max.z) / 2
     )
     const anchorPos = this.anchor.getTransform().getWorldPosition()
@@ -101,6 +113,36 @@ export class ForgePart {
     return [q.x, q.y, q.z, q.w]
   }
 
+  /**
+   * The part's rotation relative to its loaded orientation, in the form the
+   * backend's `orientations[]` table is keyed by: the 3x3 row-major rotation
+   * matrix with every entry rounded to an integer, joined with commas.
+   * As loaded that is "1,0,0,0,1,0,0,0,1".
+   *
+   * Flip and Turn only ever reach axis-aligned orientations, so the rounding
+   * is exact at rest; mid-animation the key simply will not match a row, which
+   * is how the caller knows to leave the readout alone until the part settles.
+   */
+  public get rotationKey(): string {
+    const q = this.currentRotation
+    const x = q.x
+    const y = q.y
+    const z = q.z
+    const w = q.w
+    const m = [
+      1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y),
+      2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x),
+      2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)
+    ]
+    const parts: string[] = []
+    for (const v of m) {
+      // `+ 0` turns Math.round's -0 into 0, so a near-zero entry never comes
+      // out as "-0" and misses its row.
+      parts.push(String(Math.round(v) + 0))
+    }
+    return parts.join(",")
+  }
+
   /** Dimensions in mm at the current user scale, in the server's [x, y, z] order. */
   public get dimsMm(): number[] {
     if (!this.job) return [0, 0, 0]
@@ -119,9 +161,22 @@ export class ForgePart {
   }
 
   public setEdgeX(x: number): void {
+    this.setLandingPoint(x, this.landingZ)
+  }
+
+  /**
+   * Where the part clamps, in the desk plane.
+   *
+   * In the preview that is always the virtual desk's front edge, and only `x`
+   * moves. On a SPECS device there is no virtual desk, so the part lands where
+   * the user pinched and `z` comes from the pinch too — see
+   * ForgeApp.hidePreviewStandIns.
+   */
+  public setLandingPoint(x: number, z: number): void {
     const limit = Layout.edgeSlideLimit
     const clamped = Math.max(-limit, Math.min(limit, x))
-    this.anchor.getTransform().setLocalPosition(new vec3(clamped, Layout.deskTopY, Layout.deskFrontZ))
+    this.landingZ = z
+    this.anchor.getTransform().setLocalPosition(new vec3(clamped, Layout.deskTopY, z))
   }
 
   /**

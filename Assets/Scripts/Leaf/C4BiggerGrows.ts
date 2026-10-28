@@ -40,8 +40,14 @@ export class C4BiggerGrows extends Scenario {
       "the rendered height should grow with the part"
     ).toBeWithinRange(before.renderedHeightMm * 1.13, before.renderedHeightMm * 1.17)
 
-    // And the plate text matches the new numbers: 74 x 28 x 89 -> 85 x 32 x 103.
-    expect(after.dimsText, "the plate should show the grown dimensions").toBe("85 x 32 x 103 mm")
+    // And the plate text matches the new numbers: 84 x 35 x 89 -> 97 x 40 x 103.
+    expect(after.dimsText, "the plate should show the grown dimensions").toBe("97 x 40 x 103 mm")
+
+    // The overhang percentage is scale-invariant, so Bigger must not move it;
+    // the red patch under the part grows with the part instead.
+    expect(after.overhangPct, "the overhang percentage should not change with size").toBe(
+      before.overhangPct
+    )
 
     // Still clamped to the desk.
     expect(after.partBottomY, "the part should still rest on the desk top").toBeWithinRange(

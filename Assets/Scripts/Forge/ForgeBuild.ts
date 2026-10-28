@@ -32,11 +32,31 @@ const TEXT_BASE_HEIGHT_CM = 0.75
 
 /**
  * Width of an average glyph as a fraction of the line height, for Inter.
- * Measured off the preview and rounded up, so a fitted line never spills off
- * its panel. Erring high only costs a slightly smaller or earlier-wrapped
- * label; erring low puts text over the edge of the plate.
+ *
+ * Re-measured in build 3 against a plate of known size, head-on: the title
+ * "Headphone" (9 characters) rendered 8.8 cm wide on a 14 cm plate at a 1.6 cm
+ * line, which is 0.61. Build 2's 0.9 was a third too wide, which is why the
+ * readout wrapped and shrank lines that would have fitted. Rounded up to 0.66
+ * so a fitted line still never spills: erring high only costs a slightly
+ * smaller label, erring low puts text over the edge of the plate.
  */
-const TEXT_ASPECT = 0.9
+const TEXT_ASPECT = 0.66
+
+/**
+ * Distance between consecutive baselines, as a multiple of the line height
+ * `fitLabel` is asked for. Measured the same way: two 1.6 cm title lines sat
+ * 2.26 cm apart.
+ *
+ * Needed because `heightCm` is the height of the glyphs, not of the block —
+ * laying three 1.6 cm lines out 1.6 cm apart overlaps them, which is exactly
+ * what the first cut of the floating plate did.
+ */
+export const TEXT_LINE_PITCH = 1.41
+
+/** How tall a block of `lines` lines at `heightCm` actually is, in cm. */
+export function textBlockHeightCm(heightCm: number, lines: number): number {
+  return heightCm * (1 + TEXT_LINE_PITCH * Math.max(0, lines - 1))
+}
 
 /**
  * Greedily wraps `value` so no line exceeds `maxChars`, keeping any line
@@ -164,7 +184,9 @@ export function makeLabel(
   heightCm: number,
   color: vec4,
   rotation?: quat,
-  maxWidthCm?: number
+  maxWidthCm?: number,
+  maxLines?: number,
+  minHeightCm?: number
 ): Text {
   const obj = makeObject(parent, name)
   const t = obj.getTransform()
@@ -179,32 +201,52 @@ export function makeLabel(
   text.horizontalAlignment = HorizontalAlignment.Center
   text.verticalAlignment = VerticalAlignment.Center
 
-  fitLabel(text, value, heightCm, maxWidthCm)
+  fitLabel(text, value, heightCm, maxWidthCm, maxLines, minHeightCm)
   return text
 }
 
 /**
- * Scales a label so one line is `heightCm` tall, shrinking further if the
- * block would be wider than `maxWidthCm`.
+ * Scales a label so one line is `heightCm` tall, wrapping it to `maxWidthCm`
+ * and shrinking only when wrapping alone cannot make it fit.
+ *
+ * `maxLines` caps how tall the wrapped block may get — the readout's part name
+ * is allowed two lines and no more, so a long name shrinks rather than pushing
+ * the dimensions line off the plate. `minHeightCm` is the floor: below it the
+ * line stops being readable at all, so it is better to let it overflow than to
+ * pretend it is still legible.
  */
-export function fitLabel(text: Text, value: string, heightCm: number, maxWidthCm?: number): void {
+export function fitLabel(
+  text: Text,
+  value: string,
+  heightCm: number,
+  maxWidthCm?: number,
+  maxLines?: number,
+  minHeightCm?: number
+): void {
   const t = text.getSceneObject().getTransform()
 
   let shown = value
   let height = heightCm
 
   if (maxWidthCm && maxWidthCm > 0) {
+    const floor = minHeightCm ?? 0
     // Wrap first — a shorter line at full size reads far better than the whole
-    // string shrunk down to fit on one line.
-    const maxChars = Math.floor(maxWidthCm / (TEXT_ASPECT * heightCm))
-    shown = wrapToChars(value, maxChars)
+    // string shrunk down to fit on one line — then step the height down until
+    // the wrapped block fits both the width and the line budget.
+    for (let attempt = 0; attempt < 48; attempt++) {
+      const maxChars = Math.max(1, Math.floor(maxWidthCm / (TEXT_ASPECT * height)))
+      shown = wrapToChars(value, maxChars)
 
-    // Only shrink if something still does not fit, e.g. a long filename with
-    // no spaces to break on.
-    let longest = 0
-    for (const line of shown.split("\n")) longest = Math.max(longest, line.length)
-    const widthAtHeight = longest * TEXT_ASPECT * heightCm
-    if (widthAtHeight > maxWidthCm) height = heightCm * (maxWidthCm / widthAtHeight)
+      const lines = shown.split("\n")
+      let longest = 0
+      for (const line of lines) longest = Math.max(longest, line.length)
+
+      const tooWide = longest * TEXT_ASPECT * height > maxWidthCm + 0.001
+      const tooTall = maxLines !== undefined && lines.length > maxLines
+      if (!tooWide && !tooTall) break
+      if (height <= floor + 0.0001) break
+      height = Math.max(floor, height * 0.92)
+    }
   }
 
   if (shown !== text.text) text.text = shown
@@ -281,6 +323,23 @@ export class SegmentRing {
     }
   }
 
+  /**
+   * Indeterminate progress: lights a moving window of the ring rather than a
+   * fill, for the wait on a service whose answer takes 2-5 s. `phase` runs 0..1
+   * around the ring and wraps; `arc` is the fraction lit at once.
+   */
+  public setSweep(phase: number, arc: number): void {
+    const n = this.segments.length
+    const head = Math.floor((((phase % 1) + 1) % 1) * n)
+    const width = Math.max(1, Math.round(arc * n))
+    for (let i = 0; i < n; i++) {
+      // How far this segment trails behind the sweep head, wrapped.
+      const behind = (head - i + n) % n
+      this.segments[i].material.mainPass.baseColor =
+        behind < width ? this.fillColor : this.trackColor
+    }
+  }
+
   /** Repaints the whole ring, e.g. green on a completed export. */
   public setColors(track: vec4, fill: vec4): void {
     this.trackColor = track
@@ -335,3 +394,91 @@ export function easeInOut(t: number): number {
   return c < 0.5 ? 2 * c * c : 1 - Math.pow(-2 * c + 2, 2) / 2
 }
 
+
+/**
+ * The flat red "where supports would go" patch, drawn on the desk under the
+ * part from an orientation row's `footprint.tris`.
+ *
+ * The server gives the overhanging faces projected straight down onto the print
+ * bed as a triangle list in millimetres, in its own bed frame, relative to the
+ * part's footprint centre — so `scad (x, y)` becomes Lens `(x / 10, -y / 10)`
+ * in the desk plane, times the part's current scale factor.
+ *
+ * Each triangle is emitted with both windings: nothing in the contract says
+ * which way the server wound them, and a one-sided patch would be invisible
+ * from exactly the seated eye this is meant to be seen from.
+ */
+export class FootprintMesh {
+  public readonly object: SceneObject
+  private readonly visual: RenderMeshVisual
+  private readonly material: Material
+  /** Held so the RenderMesh it produced is not collected under us. */
+  private builder: MeshBuilder | null = null
+  private triangleCount = 0
+
+  constructor(kit: BuildKit, parent: SceneObject, name: string, color: vec4) {
+    this.object = makeObject(parent, name)
+    this.visual = this.object.createComponent("Component.RenderMeshVisual") as RenderMeshVisual
+    this.material = kit.unlit.clone()
+    this.material.mainPass.baseColor = color
+    this.visual.clearMaterials()
+    this.visual.addMaterial(this.material)
+    this.object.enabled = false
+  }
+
+  /** Rebuilds the patch. `tris` is three [x, y] millimetre points per triangle. */
+  public setTriangles(tris: number[][], scale: number): void {
+    if (!tris || tris.length < 3) {
+      this.triangleCount = 0
+      this.object.enabled = false
+      return
+    }
+
+    const builder = new MeshBuilder([
+      { name: "position", components: 3 },
+      { name: "normal", components: 3 },
+      { name: "texture0", components: 2 }
+    ])
+    builder.topology = MeshTopology.Triangles
+    builder.indexType = MeshIndexType.UInt16
+
+    const verts: number[] = []
+    const indices: number[] = []
+    // Millimetres to centimetres, at the size the part is currently shown.
+    const k = scale / 10
+    let count = 0
+
+    for (let t = 0; t + 2 < tris.length; t += 3) {
+      const base = count * 3
+      for (let c = 0; c < 3; c++) {
+        const p = tris[t + c]
+        // position, then an up normal, then an unused uv.
+        verts.push(p[0] * k, 0, -p[1] * k, 0, 1, 0, 0, 0)
+      }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 1)
+      count++
+    }
+
+    builder.appendVerticesInterleaved(verts)
+    builder.appendIndices(indices)
+    builder.updateMesh()
+    this.visual.mesh = builder.getMesh()
+    this.builder = builder
+    this.triangleCount = count
+    this.object.enabled = true
+  }
+
+  public clear(): void {
+    this.triangleCount = 0
+    this.object.enabled = false
+  }
+
+  public setEnabled(on: boolean): void {
+    this.object.enabled = on && this.triangleCount > 0
+  }
+
+  /** How many triangles the current row asked for. 0 means nothing overhangs. */
+  public get count(): number {
+    return this.triangleCount
+  }
+}

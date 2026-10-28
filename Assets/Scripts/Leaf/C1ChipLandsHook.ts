@@ -7,7 +7,7 @@ import { forge, resetLens, waitUntil } from "./ForgeTestUtils"
 /**
  * Done criterion 1 - Pinching the "Headphone hook" chip shows the designing
  * ring, then a hook appears clamped on the desk edge, and the plate reads the
- * name and the backend's dimensions (74 x 28 x 89 mm for the cached hook) with
+ * name and the backend's dimensions (84 x 35 x 89 mm for the cached hook) with
  * the part's rendered height matching within 2 mm.
  */
 @component
@@ -48,8 +48,8 @@ export class C1ChipLandsHook extends Scenario {
     expect(s.chipsVisible, "chips should disappear once a part exists").toBe(false)
 
     // The backend's dimensions, in the server's [x, y, z] order.
-    expect(s.dimsMm[0], "dims_mm[0]").toBeWithinRange(73.5, 74.5)
-    expect(s.dimsMm[1], "dims_mm[1]").toBeWithinRange(27.5, 28.5)
+    expect(s.dimsMm[0], "dims_mm[0]").toBeWithinRange(83.5, 84.5)
+    expect(s.dimsMm[1], "dims_mm[1]").toBeWithinRange(34.5, 35.5)
     expect(s.dimsMm[2], "dims_mm[2]").toBeWithinRange(89.0, 89.8)
 
     // The part is rendered at 1:1 print scale: height within 2 mm of dims_mm[2].
@@ -64,6 +64,10 @@ export class C1ChipLandsHook extends Scenario {
       "the part should rest on the desk top"
     ).toBeWithinRange(s.deskTopY - 0.2, s.deskTopY + 0.2)
 
-    expect(s.dimsText, "the plate should show the dimensions in mm").toBe("74 x 28 x 89 mm")
+    expect(s.dimsText, "the plate should show the dimensions in mm").toBe("84 x 35 x 89 mm")
+
+    // And the footer says which path answered. The live service is up in this
+    // run, so it should not be claiming an offline copy.
+    expect(s.footerText, "the footer should name the path").toBe("live design")
   }
 }

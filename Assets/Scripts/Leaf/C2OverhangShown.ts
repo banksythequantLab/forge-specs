@@ -7,7 +7,8 @@ import { forge, resetLens, waitUntil } from "./ForgeTestUtils"
 /**
  * Done criterion 2 - With the hook on the edge, the downward faces steeper than
  * 45 degrees are shaded red and the plate shows the backend's overhang figure
- * (16.6% for the cached hook).
+ * (16.2% for the hook as loaded), with the red support footprint drawn on the
+ * desk underneath it.
  *
  * The red itself is produced by the overhang shader, which this pass does not
  * ship; what is asserted here is the state that drives it (overhang shading on,
@@ -30,8 +31,16 @@ export class C2OverhangShown extends Scenario {
 
     // And the plate cross-checks it with the backend's figure.
     expect(s.overhangPct, "the plate should show the backend's overhang percentage").toBeWithinRange(
-      16.5,
-      16.7
+      16.1,
+      16.3
     )
+
+    // The orientation the part landed in is the table's identity row, and that
+    // row's footprint is the one rectangle under the hook's arms.
+    expect(s.orientationKey, "the part should be in its loaded orientation").toBe(
+      "1,0,0,0,1,0,0,0,1"
+    )
+    expect(s.footprintTriangles, "the support footprint should be drawn").toBe(2)
+    expect(s.footprintVisible, "and it should be visible on the desk").toBe(true)
   }
 }
