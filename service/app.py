@@ -13,6 +13,7 @@ import re
 import secrets
 import shutil
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from forge import __version__, geometry, llm
 from forge.catalog import PARTS, catalog_json
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per Ollama call is noise in the journal
 log = logging.getLogger("forge")
 
 DATA_DIR = Path(os.environ.get("FORGE_DATA_DIR", Path(__file__).resolve().parent / "data"))
@@ -36,7 +38,14 @@ JOBS_DIR.mkdir(parents=True, exist_ok=True)
 if OUTBOX:
     OUTBOX.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="Forge", version=__version__)
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    llm.warm_async()  # start loading the local model as soon as the service is up
+    yield
+
+
+app = FastAPI(title="Forge", version=__version__, lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _SAFE = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -135,6 +144,8 @@ def health() -> dict[str, Any]:
         "openscad": geometry.openscad_version(),
         "ollama": ollama,
         "models": llm.OLLAMA_MODELS,
+        "llm_ready": llm.ollama_loaded(llm.primary_model()),  # True = live designs; False = keyword designs until warm
+        "llm_timeout_s": llm.LLM_TIMEOUT,
         "cloud_fallback": bool(llm.CLOUD_BASE_URL and llm.CLOUD_API_KEY),
         "jobs": sum(1 for _ in JOBS_DIR.iterdir()),
     }
@@ -147,10 +158,12 @@ def catalog() -> list[dict[str, Any]]:
 
 @app.get("/warm")
 def warm() -> dict[str, Any]:
-    """Pre-load the local model so the first /design during a demo is fast."""
-    t0 = time.time()
-    spec = llm.design_local("a hook for headphones on a 25 mm desk edge")
-    return {"ok": spec is not None, "seconds": round(time.time() - t0, 1), "source": (spec or {}).get("source")}
+    """Pre-load the local model (one token) so the first /design during a demo is fast.
+
+    Returns at once; the load runs in the background. `loaded` tells the Lens whether the next
+    /design will be a live model design (true) or a keyword design (false).
+    """
+    return llm.warm_async()
 
 
 @app.post("/design")

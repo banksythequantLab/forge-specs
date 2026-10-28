@@ -1,0 +1,97 @@
+- !<AssetImportMetadata/bfcc669f-5a40-412d-84ea-7d0dfa2b6dfc>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 6a277280-c9a2-4c1f-a5a5-67fe702f5151
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 6a277280-c9a2-4c1f-a5a5-67fe702f5151
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> aa326575-426c-468b-bb6f-cc4861ada4fd
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/aa326575-426c-468b-bb6f-cc4861ada4fd>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  VersionPrerelease: ""
+  UpdateOrder: 0
+  ComponentUid: de49ad95-aa48-4bb5-9630-e7921079b9fa
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    boxMesh: false
+    cameraObject: false
+    chimeAudio: false
+    clipJson: false
+    clipPrefab: false
+    coneMesh: false
+    cylinderMesh: false
+    deskEdgeHighlight: false
+    font: false
+    hookJson: false
+    hookPrefab: false
+    internetModule: false
+    partMaterial: false
+    printerRingAnchor: false
+    simulateOffline: false
+    tagJson: false
+    tagPrefab: false
+    unlitMaterial: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - boxMesh: !<reference.RenderMesh> 00000000-0000-0000-0000-000000000000
+      coneMesh: !<reference.RenderMesh> 00000000-0000-0000-0000-000000000000
+      cylinderMesh: !<reference.RenderMesh> 00000000-0000-0000-0000-000000000000
+      unlitMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      partMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      font: !<reference.Font> 00000000-0000-0000-0000-000000000000
+      hookPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      clipPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      tagPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      hookJson: !<reference.JsonAsset> 00000000-0000-0000-0000-000000000000
+      clipJson: !<reference.JsonAsset> 00000000-0000-0000-0000-000000000000
+      tagJson: !<reference.JsonAsset> 00000000-0000-0000-0000-000000000000
+      internetModule: !<reference.InternetModule> 00000000-0000-0000-0000-000000000000
+      cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      deskEdgeHighlight: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      printerRingAnchor: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      simulateOffline: false
+      chimeAudio: !<reference.AudioTrackAsset> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input Asset.RenderMesh boxMesh
+    - // @input Asset.RenderMesh coneMesh
+    - // @input Asset.RenderMesh cylinderMesh
+    - // @input Asset.Material unlitMaterial
+    - // @input Asset.Material partMaterial
+    - // @input Asset.Font font
+    - // @input Asset.ObjectPrefab hookPrefab
+    - // @input Asset.ObjectPrefab clipPrefab
+    - // @input Asset.ObjectPrefab tagPrefab
+    - // @input Asset.JsonAsset hookJson
+    - // @input Asset.JsonAsset clipJson
+    - // @input Asset.JsonAsset tagJson
+    - // @input Asset.InternetModule internetModule
+    - // @input SceneObject cameraObject
+    - // @input SceneObject deskEdgeHighlight
+    - // @input SceneObject printerRingAnchor
+    - '// @input bool simulateOffline {"hint":"Skip the live service and answer every request from Assets/ForgeCache."}'
+    - // @input Asset.AudioTrackAsset chimeAudio

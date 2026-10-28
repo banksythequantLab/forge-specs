@@ -1,0 +1,125 @@
+- !<AssetImportMetadata/90c2af41-cbe4-421d-b7be-46b1c8ad945a>
+  ImportedAssetIds:
+    1c0c16f2fb1b67d8: !<reference> a876ae72-bec2-429c-95f0-e174c425dfca
+    26ba073d67b9d0dd: !<reference> c4fdc91e-0599-484b-9062-d908e786a109
+    28c27ef539c30042: !<reference> 21548ef6-97b2-485f-b56b-f5c7a6611ff4
+    88ab437fd121cc69: !<reference> 79508d78-8944-42cb-aecb-116fcf415abb
+    8c2c6f3cf8d060fd: !<reference> 452e6120-28ae-4eb2-822b-e6bca8448fea
+    Meshes/model.stl: !<reference> 468138ed-91d8-47bb-8e98-abcc898504be
+    Scene: !<reference> 42497154-c166-42f9-957d-b6b19ed02611
+  ImporterName: GltfImporter
+  PrimaryAsset: !<reference> 42497154-c166-42f9-957d-b6b19ed02611
+  PackageType: LegacyPackage
+  LegacyPackagePolicy: CanBeUnpackedTransparent
+  ExtraData:
+    {}
+  AssetDataMap:
+    Scene: !<own> c868437e-b2b3-4e24-9f61-ceeeefe463f1
+  DependentFiles:
+    []
+  ImporterSettings: !<GltfImporterSettings>
+    UseLegacyImporter: false
+    WithMaterials: true
+    NamingConvention: ByCategorySanitizeV2
+    PersistentIdGenerationAlgorithm: DescriptorBasedV2
+    AnimationCurveOptimization: true
+    CustomAnimationSamplingRate: 30.000000
+    ImportVertexColor: true
+    ImportTangents: true
+    ImportMorphTargetAnimation: true
+    ConvertMetersToCentimeters: true
+    RegenerateTangents: false
+    OptimizeMesh: true
+  CompressionSettings: !<ComplexCompressionSettings>
+    Presets:
+      None Compression: !<FileCompressionSettings>
+        {}
+    ExtensionMappings:
+      mesh: None Compression
+    Overrides:
+      {}
+- !<SceneObject/21548ef6-97b2-485f-4a94-0a38599ee00b>
+  PrefabRemaps:
+    []
+  Name: model.stl
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> a876ae72-bec2-429c-6a0f-1e8b3bda2035
+- !<SceneObject/452e6120-28ae-4eb2-7dd4-194357bb7015>
+  PrefabRemaps:
+    []
+  Name: Scene0
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 21548ef6-97b2-485f-4a94-0a38599ee00b
+  Components:
+    []
+- !<SceneObject/79508d78-8944-42cb-5134-ee9030bea544>
+  PrefabRemaps:
+    []
+  Name: Scenes
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 452e6120-28ae-4eb2-7dd4-194357bb7015
+  Components:
+    []
+- !<RenderMeshVisual/a876ae72-bec2-429c-6a0f-1e8b3bda2035>
+  PrefabRemaps:
+    []
+  Name: model.stl
+  Enabled: true
+  RenderOrder: 0
+  StretchMode: Stretch
+  VerticalAlignment: Center
+  HorizontalAlignment: Center
+  MeshShadowMode: None
+  ShadowColor: {x: 1.000000, y: 1.000000, z: 1.000000, w: 1.000000}
+  ShadowDensity: 1.000000
+  Materials:
+    []
+  Mesh: !<reference> 468138ed-91d8-47bb-8e98-abcc898504be
+  Skin: !<reference> 00000000-0000-0000-0000-000000000000
+  BlendShapesEnabled: true
+  BlendNormals: false
+  BlendShapes:
+    {}
+- !<SceneObject/c4fdc91e-0599-484b-6f9d-26f718795ef6>
+  PrefabRemaps:
+    []
+  Name: hook
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 100.000000, y: 100.000000, z: 100.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 79508d78-8944-42cb-5134-ee9030bea544
+  Components:
+    []
+- !<ObjectPrefabAssetData/c868437e-b2b3-4e24-9f61-ceeeefe463f1>
+  Prototype: !<ObjectOwner/af4cf481-e3b7-487d-adfd-234f9d7467b7>
+    PackagePath: ""
+    objects:
+      - !<own> c4fdc91e-0599-484b-6f9d-26f718795ef6

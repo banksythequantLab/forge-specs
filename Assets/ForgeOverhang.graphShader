@@ -1,0 +1,320 @@
+SchemaVersion: 1
+Nodes:
+  ChildNodes:
+    Node0:
+      DependencyIndex: 0
+      LevelID: 1
+      NodeCount: 0
+      NodeType: 1
+      Ports:
+        Channels:
+          ItemIndex: 0
+          ItemList: "rgba : rgb"
+        Default:
+          Variable: [0.812, 0.839, 0.886, 1.0]
+        Group:
+          String: ""
+        Output:
+          IOType: 1
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        ScriptName:
+          String: forgeBodyColor
+        SortIndex:
+          Variable: 0
+        Tooltip:
+          String: "Colour of surfaces that print cleanly. Light grey - never black, the display is additive."
+        UniqueID:
+          String: Body Colour
+      PositionX: -620
+      PositionY: -120
+      TemplateID: nodes_inputs_parameters_color
+      Title1: Color Parameter
+      Title2: Body Colour
+    Node1:
+      DependencyIndex: 1
+      LevelID: 2
+      NodeCount: 0
+      NodeType: 1
+      Ports:
+        Channels:
+          ItemIndex: 0
+          ItemList: "rgba : rgb"
+        Default:
+          Variable: [1.0, 0.294, 0.294, 1.0]
+        Group:
+          String: ""
+        Output:
+          IOType: 1
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        ScriptName:
+          String: forgeOverhangColor
+        SortIndex:
+          Variable: 1
+        Tooltip:
+          String: "Colour of faces that would droop in the print."
+        UniqueID:
+          String: Overhang Colour
+      PositionX: -620
+      PositionY: 40
+      TemplateID: nodes_inputs_parameters_color
+      Title1: Color Parameter
+      Title2: Overhang Colour
+    Node2:
+      DependencyIndex: 2
+      LevelID: 3
+      NodeCount: 0
+      NodeType: 1
+      Ports:
+        Channels:
+          ItemIndex: 5
+          ItemList: "xyzw : rgba : xyz : rgb : xy : x"
+        Default:
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        EnableMax:
+          Variable: false
+        EnableMin:
+          Variable: false
+        Group:
+          String: ""
+        Max:
+          Variable: 1.0
+        Min:
+          Variable: 0.0
+        Output:
+          IOType: 1
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        ScriptName:
+          String: forgeMinY
+        SortIndex:
+          Variable: 2
+        Step:
+          Variable: 0.009999999776482582
+        Title:
+          String: Lowest World Y
+        Tooltip:
+          String: "World Y of the part's lowest point, in cm. Faces within 0.5 mm of it are the printed base, not overhangs."
+      PositionX: -620
+      PositionY: 200
+      TemplateID: nodes_inputs_parameters_float
+      Title1: Float Parameter
+      Title2: Lowest World Y
+    Node3:
+      DependencyIndex: 3
+      LevelID: 4
+      NodeCount: 0
+      NodeType: 1
+      Ports:
+        Channels:
+          ItemIndex: 5
+          ItemList: "xyzw : rgba : xyz : rgb : xy : x"
+        Default:
+          Variable: [1.0, 0.0, 0.0, 0.0]
+        EnableMax:
+          Variable: true
+        EnableMin:
+          Variable: true
+        Group:
+          String: ""
+        Max:
+          Variable: 1.0
+        Min:
+          Variable: 0.0
+        Output:
+          IOType: 1
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        ScriptName:
+          String: forgeOverhangOn
+        SortIndex:
+          Variable: 3
+        Step:
+          Variable: 0.009999999776482582
+        Title:
+          String: Overhang Shading On
+        Tooltip:
+          String: "1 shows the red overhang shading, 0 hides it. Fades out after a successful export."
+      PositionX: -620
+      PositionY: 360
+      TemplateID: nodes_inputs_parameters_float
+      Title1: Float Parameter
+      Title2: Overhang Shading On
+    Node4:
+      DependencyIndex: 4
+      LevelID: 0
+      NodeCount: 0
+      NodeType: 1
+      Ports:
+        Code:
+          ClassType1: TEXT
+          String: |-
+            // Forge - red shading on faces that would need support.
+            //
+            // A face needs support when it points more than 45 degrees downward,
+            // i.e. dot(worldNormal, (0,-1,0)) > 0.707, AND it is not the flat base
+            // resting on the print bed (more than 0.5 mm above the lowest point).
+            // World units are centimetres, so 0.5 mm = 0.05.
+
+            input_vec4 bodyColor;
+            input_vec4 overhangColor;
+            input_float minY;
+            input_float overhangOn;
+            output_vec4 result;
+
+            void main()
+            {
+            	vec3 p = system.getSurfacePositionWorldSpace();
+
+            	// The true face angle, not the smoothed vertex normal. The GLB
+            	// arrives with interpolated normals, so a flat downward face
+            	// would otherwise only cross the 45 degree threshold in a thin
+            	// band instead of reading red all over.
+            	vec3 shading = normalize(system.getSurfaceNormalWorldSpace());
+            	vec3 n = normalize(cross(dFdx(p), dFdy(p)));
+            	if (dot(n, shading) < 0.0) n = -n;
+
+            	// Steeper than 45 degrees downward.
+            	float steep = step(0.707, -n.y);
+            	// Not the base that rests on the bed.
+            	float aboveBase = step(minY + 0.05, p.y);
+            	float isOverhang = steep * aboveBase * step(0.5, overhangOn);
+
+            	vec4 tint = mix(bodyColor, overhangColor, isOverhang);
+
+            	// Gentle top-lit shading so the silhouette reads in 3D without
+            	// going dark - the display is additive, dark means invisible.
+            	float shade = 0.78 + 0.22 * clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
+
+            	result = vec4(tint.rgb * shade, tint.a);
+            }
+        CustomCodeNodeAsset:
+          ClassType1: REFUID
+          String: ""
+        Description:
+          ClassType1: TEXT
+          String: ""
+        Examples:
+          ItemIndex: 0
+          ItemList: "Custom : Input/Output/Global Types : Extra Functions : Procedural Execution : Lighting Loop : System Built-In Values/Functions"
+        ID:
+          Variable: 0
+        Locked:
+          Variable: false
+        Stage:
+          ItemIndex: 1
+          ItemList: "Vertex : Pixel"
+        Title:
+          String: Overhang Shading
+        UseExternalFile:
+          Variable: false
+        bodyColor:
+          Connection0:
+            NodeLevelID: 1
+            PortID: Output
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        overhangColor:
+          Connection0:
+            NodeLevelID: 2
+            PortID: Output
+          Variable: [0.0, 0.0, 0.0, 0.0]
+        minY:
+          Connection0:
+            NodeLevelID: 3
+            PortID: Output
+          Variable: 0.0
+        overhangOn:
+          Connection0:
+            NodeLevelID: 4
+            PortID: Output
+          Variable: 0.0
+        ngs_Height:
+          Variable: 520
+        ngs_Version:
+          String: 0.1.0
+        result:
+          IOType: 1
+          Variable: [0.0, 0.0, 0.0, 0.0]
+      PositionX: -180
+      PositionY: 90
+      TemplateID: node_util_custom
+      TemplateVersionMinor: 2
+      Title1: Overhang Shading
+    Node5:
+      CommentSizeX: 0
+      CommentSizeY: 0
+      DependencyIndex: 5
+      LevelID: 5
+      NodeCount: 0
+      NodeType: 1
+      Ports:
+        Depth:
+          Variable: 1.0
+        DepthMode:
+          ItemIndex: 0
+          ItemList: "Non-Linear - Normalized [0 to 1] : Linear - Normalized [-1 to 1] : View Space - Non-Normalized [-near to -far]"
+        DontFreezeSpec:
+          Variable: false
+        FinalColor:
+          ClassType1: COLOR
+          Connection0:
+            NodeLevelID: 0
+            PortID: result
+          Variable: [1.0, 1.0, 1.0, 1.0]
+        FinalColor1:
+          ClassType1: COLOR
+          Variable: [1.0, 1.0, 1.0, 1.0]
+        FinalColor2:
+          ClassType1: COLOR
+          Variable: [1.0, 1.0, 1.0, 1.0]
+        FinalColor3:
+          ClassType1: COLOR
+          Variable: [1.0, 1.0, 1.0, 1.0]
+        GSplatPointSize:
+          Variable: 0.0
+        GSplatRotation:
+          Variable: [0.0, 0.0, 0.0, 1.0]
+        GSplatScale:
+          Variable: [0.0, 0.0, 0.0]
+        Motion Vector Pass:
+          ItemIndex: 0
+          ItemList: "Write Velocity and Depth : Discard Velocity but Write Depth : Discard Velocity and Depth"
+        Negative:
+          Variable: false
+        PrevWorldPosition:
+          Variable: [0.0, 0.0, 0.0]
+        RayDirection:
+          Variable: [0.0, 1.0, 0.0]
+        RayOrigin:
+          Variable: [0.0, 0.0, 0.0]
+        ShowPrevPos:
+          Variable: false
+        Targets:
+          ItemIndex: 0
+          ItemList: "1 : 2 : 3 : 4"
+        Type:
+          ItemIndex: 0
+          ItemList: "3D : Post Effect : Hair : Gaussian Splatting"
+        WorldNormal:
+          Variable: [0.0, 1.0, 0.0]
+        WorldPosition:
+          Variable: [0.0, 0.0, 0.0]
+        WorldTangent:
+          Variable: [0.0, 0.0, 1.0]
+        WriteDepth:
+          Variable: false
+      PositionX: 160
+      PositionY: 90
+      TemplateID: nodes_main_graph
+      Title1: Shader
+      Title2: 3D
+  IsSubGraph0: true
+  IsSubGraph1: true
+  IsSubGraph2: true
+  IsSubGraph3: true
+  IsSubGraph4: true
+  IsSubGraph5: true
+  LevelID: 0
+  NodeType: 3
+  PositionX: 0
+  PositionY: 0
+  TemplateID: nodes_main_subgraph
+  Title1: ""
+SystemID: dev.snap.shaders

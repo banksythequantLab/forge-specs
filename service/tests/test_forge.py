@@ -45,6 +45,98 @@ def test_keyword_fallback_picks_part_and_dimension():
     assert spec["type"] == "tag" and spec["params"]["text_str"] == "BANKSY"
 
 
+class _FakeResp:
+    def __init__(self, status: int, payload):
+        self.status_code = status
+        self._payload = payload
+        self.text = ""
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"http {self.status_code}")
+
+
+def test_design_skips_llm_when_model_not_resident(monkeypatch):
+    """Model evicted -> keyword design in milliseconds and a background warm, never a blocking load."""
+    import time
+
+    calls = {"chat": 0, "warm": 0}
+    monkeypatch.setattr(llm, "ollama_loaded", lambda model: False)
+    monkeypatch.setattr(llm, "_ollama_chat", lambda *a, **k: calls.__setitem__("chat", calls["chat"] + 1))
+    monkeypatch.setattr(llm, "warm_async", lambda: calls.__setitem__("warm", calls["warm"] + 1) or {})
+    t0 = time.time()
+    spec = llm.design("Headphone hook for my 30 mm desk edge")
+    assert time.time() - t0 < 0.5
+    assert spec["source"] == "keywords" and spec["type"] == "hook" and spec["params"]["edge_thickness"] == 30
+    assert calls == {"chat": 0, "warm": 1}
+
+
+def test_design_uses_llm_when_model_resident(monkeypatch):
+    monkeypatch.setattr(llm, "ollama_loaded", lambda model: True)
+    monkeypatch.setattr(
+        llm,
+        "_ollama_chat",
+        lambda model, prompt, think: {
+            "type": "hook",
+            "name": "Headphone Desk Hook",
+            "params": {"edge_thickness": 30, "hook_width": 35},
+            "rationale": "Clamps a 30 mm desk edge; 35 mm wide for a headphone band.",
+        },
+    )
+    spec = llm.design("Headphone hook for my 30 mm desk edge")
+    assert spec["source"] == "ollama:qwen3:4b" and spec["name"] == "Headphone Desk Hook"
+    assert spec["params"]["hook_width"] == 35 and "llm_seconds" in spec
+
+
+def test_clean_name():
+    assert llm._clean_name("specs_tag", "Tag") == "Specs Tag"
+    assert llm._clean_name("Headphone Desk Hook", "Hook") == "Headphone Desk Hook"
+    assert llm._clean_name("  USB-C  Clip ", "Clip") == "USB-C Clip"
+    assert llm._clean_name("usb-c-clip", "Clip") == "Usb C Clip"
+    assert llm._clean_name("", "Keychain tag with text") == "Keychain tag with text"
+
+
+def test_ollama_loaded_reads_api_ps(monkeypatch):
+    monkeypatch.setattr(llm.httpx, "get", lambda url, timeout: _FakeResp(200, {"models": [{"name": "qwen3:4b", "model": "qwen3:4b"}]}))
+    assert llm.ollama_loaded("qwen3:4b") is True
+    assert llm.ollama_loaded("qwen3.8:27b") is False
+    monkeypatch.setattr(llm.httpx, "get", lambda url, timeout: (_ for _ in ()).throw(ConnectionError("down")))
+    assert llm.ollama_loaded("qwen3:4b") is None
+
+
+def test_warm_endpoint_returns_immediately(monkeypatch):
+    """/warm must never block the Lens: it starts the load in a thread and answers at once."""
+    import threading
+    import time
+    from fastapi.testclient import TestClient
+    import app as forge_app
+
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_warm(timeout=120.0):
+        started.set()
+        release.wait(5)
+        llm.LAST_WARM = {"ok": True, "model": "qwen3:4b", "seconds": 1.0, "at": time.time()}
+        return llm.LAST_WARM
+
+    monkeypatch.setattr(llm, "ollama_loaded", lambda model: False)
+    monkeypatch.setattr(llm, "warm_local", slow_warm)
+    monkeypatch.setattr(llm, "_warm_thread", None)
+    client = TestClient(forge_app.app)
+    t0 = time.time()
+    body = client.get("/warm").json()
+    assert time.time() - t0 < 1.0
+    assert body["ok"] and body["loaded"] is False and body["started"] is True and body["warming"] is True
+    assert started.wait(2)
+    body2 = client.get("/warm").json()
+    assert body2["started"] is False and body2["warming"] is True  # one warm at a time
+    release.set()
+
+
 def test_lens_rotation_round_trip_lays_hook_flat(tmp_path):
     """A 90° turn about the Lens X axis must put the hook's width on the Z axis (profile flat on the bed)."""
     stl = tmp_path / "hook.stl"

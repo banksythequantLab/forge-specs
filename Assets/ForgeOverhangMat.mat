@@ -1,0 +1,34 @@
+- !<Material/3f2a71c6-0b4d-4e52-9a71-5c6d8e104a21>
+  PackagePath: ""
+  PassesInfo:
+    - !<own> 9c4b1e70-3a2d-4f18-8c05-71de9b2a4f63
+- !<PassInfo/9c4b1e70-3a2d-4f18-8c05-71de9b2a4f63>
+  CachedProperties:
+    []
+  DepthWrite: true
+  DepthTest: true
+  DepthFunction: LessEqual
+  TwoSided: false
+  ColorMask: {x: true, y: true, z: true, w: true}
+  CullMode: Back
+  PolygonOffset: {x: 0.000000, y: 0.000000}
+  FrustumCulling: Auto
+  FrustumCullPad: 0.000000
+  InstanceCount: 1
+  Defines:
+    []
+  BlendMode: Disabled
+  Properties:
+    forgeBodyColor:
+      typeIdx: 5
+      value: {x: 0.812000, y: 0.839000, z: 0.886000, w: 1.000000}
+    forgeOverhangColor:
+      typeIdx: 5
+      value: {x: 1.000000, y: 0.294000, z: 0.294000, w: 1.000000}
+    forgeMinY:
+      typeIdx: 1
+      value: 0.000000
+    forgeOverhangOn:
+      typeIdx: 1
+      value: 1.000000
+  Pass: !<reference> d0f9a0d4-870e-4861-bbc9-a5ac3477530d

@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 from typing import Any
 
@@ -19,18 +20,67 @@ from .catalog import PARTS, all_param_names, catalog_text
 log = logging.getLogger("forge.llm")
 
 OLLAMA_URL = os.environ.get("FORGE_OLLAMA_URL", "http://127.0.0.1:11434")
-OLLAMA_MODELS = [m.strip() for m in os.environ.get("FORGE_OLLAMA_MODELS", "qwen3.8:27b,qwen3:4b").split(",") if m.strip()]
+# One small model, pinned in memory: alternating between a 27B and a 4B model made Ollama reload on
+# every request on the box (2 GB dedicated VRAM + shared memory), which is what the 12-second Lens
+# timeout cannot absorb. The catalog is simple enough for a 4B model; the keyword fallback covers the rest.
+OLLAMA_MODELS = [m.strip() for m in os.environ.get("FORGE_OLLAMA_MODELS", "qwen3:4b").split(",") if m.strip()]
+OLLAMA_KEEP_ALIVE = os.environ.get("FORGE_OLLAMA_KEEP_ALIVE", "-1")  # -1 = never evict
 CLOUD_BASE_URL = os.environ.get("FORGE_CLOUD_BASE_URL", "")  # OpenAI-compatible, e.g. https://api.openai.com/v1
 CLOUD_API_KEY = os.environ.get("FORGE_CLOUD_API_KEY", "")
 CLOUD_MODEL = os.environ.get("FORGE_CLOUD_MODEL", "gpt-4o-mini")
-LLM_TIMEOUT = float(os.environ.get("FORGE_LLM_TIMEOUT", "75"))
+# The Lens gives up at 15 s and the OpenSCAD render needs 1-2 s, so the model gets at most ~8 s.
+# Anything slower falls through to the keyword designer, which answers in milliseconds.
+LLM_TIMEOUT = float(os.environ.get("FORGE_LLM_TIMEOUT", "8"))
+NUM_CTX = int(os.environ.get("FORGE_NUM_CTX", "8192"))  # KV cache size; keep small or Ollama eats RAM
+PS_TIMEOUT = 1.5  # seconds for the "is the model resident?" probe
+
+_warm_lock = threading.Lock()
+_warm_thread: threading.Thread | None = None
+LAST_WARM: dict[str, Any] = {}
+
+
+def _keep_alive() -> int | str:
+    try:
+        return int(OLLAMA_KEEP_ALIVE)
+    except ValueError:
+        return OLLAMA_KEEP_ALIVE
+
+
+def primary_model() -> str:
+    return OLLAMA_MODELS[0] if OLLAMA_MODELS else ""
+
+
+def ollama_loaded(model: str) -> bool | None:
+    """True/False = whether `model` is resident in Ollama right now; None = Ollama unreachable.
+
+    A cold load of even a 4B model takes 10-30 s on the box when another model is being
+    shuffled in and out, so a request that would trigger a load is not worth waiting for.
+    """
+    if not model:
+        return False
+    try:
+        r = httpx.get(f"{OLLAMA_URL}/api/ps", timeout=PS_TIMEOUT)
+        r.raise_for_status()
+        names = set()
+        for m in r.json().get("models", []):
+            for key in ("name", "model"):
+                if m.get(key):
+                    names.add(m[key])
+        return model in names or f"{model}:latest" in names
+    except Exception as e:
+        log.warning("ollama /api/ps failed: %s", e)
+        return None
 
 SYSTEM_PROMPT = """You are Forge, a parametric part designer for a desktop 3D printer.
 The user describes something they need. Pick exactly ONE part type from the catalog and fill in its
 parameters in millimetres so the part fits what they described. Infer sizes from everyday objects
 (headphones band ~ 30 mm wide, a phone ~ 10 mm thick in a case, a USB cable ~ 5 mm, a desk edge ~ 25 mm).
 Use numbers the user gives (convert inches and cm to mm). Only use parameter names from the catalog.
-Give the part a short friendly name (max 5 words) and a one-sentence rationale that mentions the key dimension.
+Size the part to what it holds: a headphone hook needs hook_width 35-40 and hook_reach 40; a bag or coat hook
+needs hook_drop 70+; a cable clip's cable_dia is the cable's diameter plus ~1 mm of clearance; a phone stand's
+device_th is the phone thickness plus ~2 mm.
+Give the part a short friendly name in plain words with spaces (max 5 words, e.g. "Headphone Desk Hook") and a
+one-sentence rationale that mentions the key dimension.
 
 Catalog:
 """ + catalog_text()
@@ -52,6 +102,19 @@ def _schema() -> dict[str, Any]:
     }
 
 
+def _clean_name(raw: Any, fallback: str) -> str:
+    """Small models like to answer 'specs_tag'; show 'Specs Tag' on the plate instead."""
+    name = str(raw or "").strip()
+    if " " not in name:  # snake_case / kebab-case single token
+        name = re.sub(r"[_\-]+", " ", name)
+    name = re.sub(r"\s+", " ", name.replace("_", " ")).strip()
+    if not name:
+        return fallback
+    if name == name.lower():
+        name = name.title()
+    return name[:40]
+
+
 def _validate(spec: dict[str, Any], source: str) -> dict[str, Any] | None:
     if not isinstance(spec, dict):
         return None
@@ -63,7 +126,7 @@ def _validate(spec: dict[str, Any], source: str) -> dict[str, Any] | None:
     clamped = part.clamp(params)
     return {
         "type": ptype,
-        "name": (str(spec.get("name") or part.title))[:40],
+        "name": _clean_name(spec.get("name"), part.title),
         "params": clamped,
         "rationale": (str(spec.get("rationale") or ""))[:240],
         "source": source,
@@ -77,8 +140,8 @@ def _ollama_chat(model: str, prompt: str, think: bool | None) -> dict[str, Any]:
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
         "stream": False,
         "format": _schema(),
-        "options": {"temperature": 0.1, "num_ctx": 8192, "num_predict": 400},
-        "keep_alive": "30m",
+        "options": {"temperature": 0.1, "num_ctx": NUM_CTX, "num_predict": 400},
+        "keep_alive": _keep_alive(),
     }
     if think is not None:
         body["think"] = think
@@ -90,8 +153,74 @@ def _ollama_chat(model: str, prompt: str, think: bool | None) -> dict[str, Any]:
     return json.loads(content)
 
 
+def warm_local(timeout: float = 120.0) -> dict[str, Any]:
+    """Load the primary model into memory with a one-token request, so the first /design is fast.
+
+    Deliberately NOT a full design call: that would occupy Ollama for 10+ seconds right when the
+    user is about to pinch a chip. Blocking; the HTTP layer calls warm_async() instead.
+    """
+    global LAST_WARM
+    model = primary_model()
+    if not model:
+        return {"ok": False, "model": None, "seconds": 0.0}
+    t0 = time.time()
+    body: dict[str, Any] = {
+        "model": model,
+        "messages": [{"role": "user", "content": "hi"}],
+        "stream": False,
+        "think": False,
+        # Same num_ctx as the design calls: Ollama sizes the KV cache from num_ctx and reloads the
+        # model whenever it changes. Without it, qwen3's 262k default context allocated ~80 GB.
+        "options": {"num_predict": 1, "num_ctx": NUM_CTX},
+        "keep_alive": _keep_alive(),
+    }
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.post(f"{OLLAMA_URL}/api/chat", json=body)
+            if r.status_code == 400 and "think" in r.text.lower():
+                body.pop("think", None)
+                r = client.post(f"{OLLAMA_URL}/api/chat", json=body)
+            r.raise_for_status()
+        result = {"ok": True, "model": model, "seconds": round(time.time() - t0, 1), "at": time.time()}
+    except Exception as e:
+        log.warning("warm %s failed: %s", model, e)
+        result = {"ok": False, "model": model, "seconds": round(time.time() - t0, 1), "error": str(e)[:120], "at": time.time()}
+    LAST_WARM = result
+    return result
+
+
+def warm_async() -> dict[str, Any]:
+    """Kick off warm_local() in a background thread (one at a time) and return immediately."""
+    global _warm_thread
+    model = primary_model()
+    loaded = ollama_loaded(model)
+    started = False
+    with _warm_lock:
+        if loaded is False and (_warm_thread is None or not _warm_thread.is_alive()):
+            _warm_thread = threading.Thread(target=warm_local, name="forge-warm", daemon=True)
+            _warm_thread.start()
+            started = True
+    return {
+        "ok": True,
+        "model": model or None,
+        "loaded": loaded,
+        "started": started,
+        "warming": bool(_warm_thread and _warm_thread.is_alive()),
+        "last": {k: v for k, v in LAST_WARM.items() if k != "at"},
+    }
+
+
 def design_local(prompt: str) -> dict[str, Any] | None:
     for model in OLLAMA_MODELS:
+        loaded = ollama_loaded(model)
+        if loaded is None:
+            return None  # Ollama down: straight to cloud / keywords
+        if loaded is False:
+            # The model has been evicted (something else is using the GPU). Loading it would blow the
+            # Lens's time budget, so answer with keywords now and warm in the background for next time.
+            log.warning("ollama %s not resident; using keyword designer and warming in background", model)
+            warm_async()
+            continue
         for think in (False, None):
             t0 = time.time()
             try:
