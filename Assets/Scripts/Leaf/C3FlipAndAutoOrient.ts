@@ -2,7 +2,7 @@ import { Scenario } from "Leaf.lspkg/Scenarios/scenario/Scenario"
 import { DefaultLeafInteractor } from "Leaf.lspkg/Interactors/interactor/DefaultLeafInteractor"
 import { expect } from "Leaf.lspkg/Utils/common/Expect"
 
-import { angleBetweenDegrees, forge, resetLens, wait, waitUntil } from "./ForgeTestUtils"
+import { angleBetweenDegrees, forge, resetLens, sawWhile, waitUntil } from "./ForgeTestUtils"
 
 /**
  * Done criterion 3 - Pinching Flip rotates the part 90 degrees over a third of
@@ -26,10 +26,16 @@ export class C3FlipAndAutoOrient extends Scenario {
     // --- Flip: 90 degrees, animated over about a third of a second ---------
     const before = forge().getState().quat
     const startedAt = getTime()
-    await interactor.trigger(app.getTarget("button:Flip"))
+
+    // Transient state: see sawWhile. By the time the trigger resolves the
+    // third-of-a-second rotation can already be over.
+    const sawAnimation = await sawWhile(
+      () => forge().getState().isAnimating,
+      interactor.trigger(app.getTarget("button:Flip"))
+    )
 
     // It animates rather than snapping.
-    expect(forge().getState().isAnimating, "Flip should animate, not snap").toBe(true)
+    expect(sawAnimation, "Flip should animate, not snap").toBe(true)
 
     await waitUntil(() => !forge().getState().isAnimating, "the Flip animation to finish", 5)
     const elapsed = getTime() - startedAt

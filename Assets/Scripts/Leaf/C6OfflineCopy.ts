@@ -2,7 +2,7 @@ import { Scenario } from "Leaf.lspkg/Scenarios/scenario/Scenario"
 import { DefaultLeafInteractor } from "Leaf.lspkg/Interactors/interactor/DefaultLeafInteractor"
 import { expect } from "Leaf.lspkg/Utils/common/Expect"
 
-import { angleBetweenDegrees, forge, resetLens, waitUntil } from "./ForgeTestUtils"
+import { angleBetweenDegrees, forge, resetLens, sawWhile, waitUntil } from "./ForgeTestUtils"
 
 /**
  * Done criterion 6 - With the network unreachable, the same chip loads the
@@ -75,8 +75,13 @@ export class C6OfflineCopy extends Scenario {
       ).toBeWithinRange(1.149, 1.151)
 
       // --- criterion 5: export still produces a filename -----------------
-      await interactor.trigger(app.getTarget("button:Export STL"))
-      expect(forge().getState().statusText, "the plate should say it is writing").toBe("writing...")
+      // Offline the export is a cache read, so "writing..." is gone again
+      // within a few frames — well before the trigger finishes releasing.
+      const sawWriting = await sawWhile(
+        () => forge().getState().statusText === "writing...",
+        interactor.trigger(app.getTarget("button:Export STL"))
+      )
+      expect(sawWriting, "the plate should say it is writing").toBe(true)
       await waitUntil(
         () => forge().getState().phase === "ready" && forge().getState().filename !== "",
         "the offline export to finish",

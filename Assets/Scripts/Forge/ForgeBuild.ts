@@ -53,6 +53,17 @@ const TEXT_ASPECT = 0.66
  */
 export const TEXT_LINE_PITCH = 1.41
 
+/**
+ * The line height `fitLabel` actually settled on for a label, in cm.
+ *
+ * fitLabel encodes it in the object's uniform scale, so this is just that
+ * scaling read back — the only honest way to find out, because a Text's AABB
+ * is its layout box rather than its glyph extent.
+ */
+export function labelHeightCm(text: Text): number {
+  return text.getSceneObject().getTransform().getLocalScale().x * TEXT_BASE_HEIGHT_CM
+}
+
 /** How tall a block of `lines` lines at `heightCm` actually is, in cm. */
 export function textBlockHeightCm(heightCm: number, lines: number): number {
   return heightCm * (1 + TEXT_LINE_PITCH * Math.max(0, lines - 1))
@@ -421,6 +432,10 @@ export class FootprintMesh {
     this.visual = this.object.createComponent("Component.RenderMeshVisual") as RenderMeshVisual
     this.material = kit.unlit.clone()
     this.material.mainPass.baseColor = color
+    // The contract asks for the patch to be slightly transparent; ForgeUnlit
+    // is authored opaque, so the clone has to turn blending on for the alpha
+    // in Footprint.color to mean anything.
+    this.material.mainPass.blendMode = BlendMode.Normal
     this.visual.clearMaterials()
     this.visual.addMaterial(this.material)
     this.object.enabled = false

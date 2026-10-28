@@ -2,7 +2,7 @@ import { Interactable } from "InteractionKit.lspkg/Components/Interaction/Intera
 import { DragInteractorEvent, InteractorEvent } from "InteractionKit.lspkg/Core/Interactor/InteractorEvent"
 
 import { CHIPS, Footprint, Layout, Palette, ReadoutLine, Timing } from "./ForgeConfig"
-import { BuildKit, FLAT_ON_DESK, FootprintMesh, SegmentRing, fitLabel, makeArrow, makeInteractive, makeLabel, makeObject, makePanel } from "./ForgeBuild"
+import { BuildKit, FLAT_ON_DESK, FootprintMesh, SegmentRing, fitLabel, labelHeightCm, makeArrow, makeInteractive, makeLabel, makeObject, makePanel, textBlockHeightCm } from "./ForgeBuild"
 import { ForgeBackend } from "./ForgeBackend"
 import { ForgePart } from "./ForgePart"
 import { ForgeDesign, ForgeJob, ForgeOrientation } from "./ForgeTypes"
@@ -61,6 +61,7 @@ export class ForgeApp extends BaseScriptComponent {
   private arrow: SceneObject
   private edgeTarget: SceneObject
 
+  private plateRoot!: SceneObject
   private plateMaterials: Material[] = []
   private titleText: Text
   private dimsText: Text
@@ -236,6 +237,13 @@ export class ForgeApp extends BaseScriptComponent {
       new vec3(0, Layout.deskTopY + 0.5, Layout.deskFrontZ + 1),
       new vec4(1, 1, 1, 0.05)
     )
+    // ForgeUnlit is authored opaque, so this strip's 5% alpha came out as a
+    // solid white bar 120 cm across the front edge — and, worse, it wrote
+    // depth over the red support footprint lying on the desk behind it. The
+    // strip is a pinch target, not a thing to look at: blend it and keep it
+    // out of the depth buffer.
+    strip.material.mainPass.blendMode = BlendMode.Normal
+    strip.material.mainPass.depthWrite = false
     this.edgeTarget = strip.root
     const interactable = makeInteractive(strip.root, new vec3(Layout.deskWidth, 2.5, 5))
     interactable.onTriggerEnd.add((e: InteractorEvent) => {
@@ -310,47 +318,70 @@ export class ForgeApp extends BaseScriptComponent {
   }
 
   /**
-   * The rotation that aims the readout plate's face (its local +Y) at the
-   * seated eye, computed once from the authored pose rather than billboarded —
-   * a plate that chases the head swims around in peripheral vision.
+   * The rotation that turns the plate into an upright rectangle facing the
+   * viewer, applied every frame from the camera's own world rotation.
    *
-   * Pitch about X raises the face from flat towards the user; yaw about Y
-   * swings it across to account for the plate sitting off to the left.
+   * A panel's face is its local +Y and `FLAT_ON_DESK` lays its labels out
+   * reading from local -Z (top) to +Z (bottom). Pre-multiplying the camera's
+   * rotation by a +90 degree turn about X maps plate +Y onto the camera's
+   * backward axis and plate -Z onto the camera's up axis, which leaves every
+   * label with exactly the camera's world rotation: face-on, never skewed.
+   *
+   * Build 3 authored the tilt once from a fixed seated eye instead, on the
+   * argument that a plate chasing the head swims in peripheral vision. That
+   * holds for something floating in mid-air; this one is pinned to the front
+   * face of a desk the user is sitting at, so it has somewhere to be and the
+   * only thing the head rotation changes is whether the text is readable.
    */
-  private plateFacingRotation(): quat {
-    const target = Layout.plateFaceTarget
-    const dx = target.x - Layout.plateX
-    const dy = target.y - (Layout.deskTopY + Layout.plateAboveDesk)
-    const dz = target.z - Layout.plateZ
-    const horizontal = Math.sqrt(dx * dx + dz * dz)
-    const pitch = Math.atan2(horizontal, dy)
-    const yaw = Math.atan2(dx, dz)
-    return quat
-      .angleAxis(yaw, vec3.up())
-      .multiply(quat.angleAxis(pitch, vec3.right()))
+  private plateBillboardRotation(): quat {
+    const camera = this.cameraObject.getTransform().getWorldRotation()
+    return camera.multiply(quat.angleAxis(Math.PI / 2, vec3.right()))
+  }
+
+  /**
+   * Puts the title's top edge on the plate's top margin whatever it wrapped to.
+   *
+   * The Text is vertically centred on its own origin, so a one-line and a
+   * two-line title with the same origin have different top edges. Only the
+   * title moves: the lines below it keep the fixed z budgeted for a two-line
+   * title, so nothing jumps when the part changes.
+   */
+  private placeTitle(): void {
+    const height = labelHeightCm(this.titleText)
+    const lines = this.titleText.text.length === 0 ? 1 : this.titleText.text.split("\n").length
+    const t = this.titleText.getSceneObject().getTransform()
+    const p = t.getLocalPosition()
+    t.setLocalPosition(new vec3(p.x, p.y, ReadoutLine.topZ + textBlockHeightCm(height, lines) / 2))
   }
 
   private buildPartUi(): void {
     this.partUiRoot = makeObject(this.uiRoot, "PartControls")
 
-    // --- readout plate: a floating upright tag above and left of the part --
+    // --- readout plate: a drawer label on the desk's front face -----------
     //
-    // It is off the desk entirely (build 2 had it lying on the surface), which
-    // is what lets each of the three main lines be 1.6 cm — about 1.3 degrees
-    // of visual angle from the seated eye. See Layout.plateSize for why.
+    // Hung below the work surface and just proud of the front face, so it
+    // cannot collide with anything standing on the desk and sits in the lower
+    // left of the seated view, beside the part's hanging arm. Billboarded
+    // every frame (see plateBillboardRotation) so it reads as an upright
+    // rectangle rather than the skewed parallelogram a fixed tilt produced.
     //
-    // The tag is a panel whose thin axis (local +Y) is aimed at the seated eye,
-    // so FLAT_ON_DESK still orients the labels correctly against its face: the
-    // text faces local +Y and reads from local -Z (top) down to +Z (bottom).
+    // The tag is a panel whose thin axis (local +Y) is the face, so
+    // FLAT_ON_DESK still orients the labels correctly against it: the text
+    // faces local +Y and reads from local -Z (top) down to +Z (bottom).
     const plate = makePanel(
       this.kit,
       this.partUiRoot,
       "ReadoutPlate",
       new vec3(Layout.plateSize.w, 0.6, Layout.plateSize.h),
-      new vec3(Layout.plateX, Layout.deskTopY + Layout.plateAboveDesk, Layout.plateZ),
-      Palette.plateFill,
-      this.plateFacingRotation()
+      new vec3(
+        Layout.plateX,
+        Layout.deskTopY - Layout.plateBelowDeskTop,
+        Layout.deskFrontZ + Layout.plateFrontOffset
+      ),
+      Palette.plateFill
     )
+    this.plateRoot = plate.root
+    this.plateRoot.getTransform().setWorldRotation(this.plateBillboardRotation())
     this.plateMaterials.push(plate.material)
 
     // Labels sit just proud of the plate face. More negative local z is higher
@@ -358,12 +389,14 @@ export class ForgeApp extends BaseScriptComponent {
     const lineY = 0.6
     const pw = ReadoutLine.maxWidth
     const minH = ReadoutLine.minHeight
-    this.titleText = makeLabel(this.kit, plate.root, "Readout Title", "", new vec3(0, lineY, ReadoutLine.titleZ), ReadoutLine.title, Palette.textOnPlate, FLAT_ON_DESK, pw, ReadoutLine.titleMaxLines, minH)
+    this.titleText = makeLabel(this.kit, plate.root, "Readout Title", "", new vec3(0, lineY, ReadoutLine.topZ), ReadoutLine.title, Palette.textOnPlate, FLAT_ON_DESK, pw, ReadoutLine.titleMaxLines, minH)
     this.dimsText = makeLabel(this.kit, plate.root, "Readout Dims", "", new vec3(0, lineY, ReadoutLine.dimsZ), ReadoutLine.dims, Palette.accent, FLAT_ON_DESK, pw, 1, minH)
     this.overhangText = makeLabel(this.kit, plate.root, "Readout Overhang", "", new vec3(0, lineY, ReadoutLine.overhangZ), ReadoutLine.overhang, Palette.textOnPlate, FLAT_ON_DESK, pw, 1, minH)
 
     // Footer: one row, two cells. What the export is doing on the left, which
     // path produced the part on the right.
+    this.placeTitle()
+
     this.statusText = makeLabel(this.kit, plate.root, "Readout Status", "", new vec3(ReadoutLine.statusX, lineY, ReadoutLine.footerZ), ReadoutLine.footerHeight, Palette.textOnPlate, FLAT_ON_DESK, ReadoutLine.statusMaxWidth, 1, ReadoutLine.footerMinHeight)
     this.sourceText = makeLabel(this.kit, plate.root, "Readout Source", "", new vec3(ReadoutLine.sourceX, lineY, ReadoutLine.footerZ), ReadoutLine.footerHeight, Palette.accent, FLAT_ON_DESK, ReadoutLine.sourceMaxWidth, 1, ReadoutLine.footerMinHeight)
 
@@ -824,6 +857,7 @@ export class ForgeApp extends BaseScriptComponent {
     const job = this.part.currentJob
     if (!job) {
       this.setLine(this.titleText, "", ReadoutLine.title, ReadoutLine.maxWidth, ReadoutLine.titleMaxLines)
+      this.placeTitle()
       this.setLine(this.dimsText, "", ReadoutLine.dims)
       this.setLine(this.overhangText, "", ReadoutLine.overhang)
       this.setStatus("")
@@ -832,6 +866,7 @@ export class ForgeApp extends BaseScriptComponent {
     }
     const d = this.part.dimsMm
     this.setLine(this.titleText, job.design.part.name, ReadoutLine.title, ReadoutLine.maxWidth, ReadoutLine.titleMaxLines)
+    this.placeTitle()
     this.setLine(this.dimsText, d[0].toFixed(0) + " x " + d[1].toFixed(0) + " x " + d[2].toFixed(0) + " mm", ReadoutLine.dims)
     this.setLine(this.overhangText, "Overhang " + this.currentOverhangPct().toFixed(1) + "%", ReadoutLine.overhang)
     if (status) this.setStatus(status)
@@ -894,6 +929,9 @@ export class ForgeApp extends BaseScriptComponent {
     }
 
     this.updateReadoutFade()
+    if (this.cameraObject) {
+      this.plateRoot.getTransform().setWorldRotation(this.plateBillboardRotation())
+    }
   }
 
   /**

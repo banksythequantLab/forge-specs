@@ -317,3 +317,254 @@ These are design calls, flagged for the review pass rather than hidden.
 6. **The part reads faintly against the desk** — light grey on light grey. The
    shader's gentle top-light helps, but on an additive display the real test is
    a device.
+
+## CLAD build 3
+
+2026-10-28, across two sessions. The second one exists because Vesper rebooted
+while the first was in its closing LEAF pass: everything on disk was committed
+afterwards as `84ef358`, but two editor-side changes lived only in the running
+editor and were lost with it, and the build-log section was never written. This
+covers both.
+
+### Session one — commit 84ef358
+
+**The overhang figure is now driven by the orientations table, not by
+Auto-orient.** `/design` returns all 24 axis-aligned orientations up front
+(`devpost/forge-api.md`, "Orientations table and the support footprint"), so
+after every Flip and Turn the Lens converts the part's rotation relative to its
+loaded orientation into a rounded 3x3 row-major key, looks the row up, and sets
+the plate's overhang line from `row.metrics.overhang_pct`. No network call, and
+it works offline because the table travels with the cached job. Build 2 only
+knew the overhang for the orientation the part arrived in and for whatever
+Auto-orient came back with; every other rotation showed a stale number.
+
+**The red support footprint.** `row.footprint.tris` — the overhanging faces
+projected straight down onto the bed, as a flat triangle list in millimetres —
+is rebuilt into a `MeshBuilder` patch on the desk directly under the part,
+`scad (x, y)` to Lens `(x, -y)`, divided by 10 for cm, times the current scale
+factor, lifted 0.3 cm so it never z-fights. This is the piece that makes the
+overhang legible at all: the overhanging faces point down, so from a seated eye
+the red on the part itself is almost entirely hidden, and the patch on the desk
+is the same information turned into something you can see. For the hook it is
+2 triangles; it disappears to 0 when a Flip or Auto-orient reaches a
+zero-overhang row.
+
+**The readout came off the desk.** Build 2's plate lay flat on the surface
+leaned back 40 degrees and could not get any line above about 0.8 degrees of
+visual angle, because at the edge the display is only ~50 cm wide and the plate
+and the 28 cm button block had to share it. Build 3 floated it as a tag above
+and left of the part. (Session two moved it again — see below.)
+
+**An honest footer.** One row, two cells: what the export is doing on the left,
+which path produced the part on the right — "live design", "quick design" or
+"offline copy". Before this the Lens had no way to say that the thing on the
+desk came out of the cache.
+
+**An indeterminate designing ring.** `/design` takes 2-5 s and a determinate
+fill would be a lie, so the ring sweeps a 25% arc at 1.1 s per revolution while
+the service thinks, then fills in 0.4 s once the answer is actually in hand.
+
+**Preview-only stand-ins guarded.** The desk, legs, printer and table are
+scenery for the preview; on a device the real desk is the desk. They are hidden
+unless running in the editor, which the Lens reports as
+`[Forge] not in the editor - hid N preview stand-ins`.
+
+**Cache refreshed with orientations.** `tools/refresh-cache.js` re-pulls
+`hook.json` / `clip.json` / `tag.json` from the live service so the offline copy
+carries the orientations table and `exports[0]`. The hook's cached entry is now
+"Headphone Desk Hook", 84 x 35 x 89.4 mm.
+
+**Tests.** `c7_clip_and_tag` and `demo_run` added, taking the suite to eight.
+
+### Session two — recovery and the readout's real home
+
+**Recovered the two lost editor-side changes.** `ForgeDeskSurface.mat`
+`baseColor` back to the mid grey-blue `(0.361, 0.400, 0.459, 1.0)` — it had
+reverted to a near-white `(0.765, 0.792, 0.839)`; the display is additive and
+nothing in this Lens is ever black. And the Preview dock widened to a 16:9
+landscape 1120 x 630 through `Editor.Dock.IDockManager`, `findPanel(
+"Snap.Plugin.Gui.PreviewPanel")`, then the panel's `widget`. Note for next
+time: `setMinimumWidth` will widen a panel but will not shrink it, so the 630
+needed `setMaximumHeight(630)` as well. Project saved after each.
+
+**Confirmed the live path end to end.** Pinching the "Headphone hook" chip with
+Device Type Override on SPECS 27: `/design` answered in **3.0 s** (19:20:43.6 to
+19:20:46.6, job `20261028-192049-7c4f`), the part landed as "Headphone Desk
+Hook" 84 x 35 x 89.4 mm, overhang 16.2%, 2 support triangles, footer **"live
+design"**. The live service, not the cache.
+
+**A solid white bar across the desk edge — found and fixed.** The first
+screenshot showed a 120 cm white band at the front edge, hiding the red
+footprint completely. It is `DeskEdgePinchTarget`, the invisible strip you pinch
+to slide the part along the edge, authored at `vec4(1, 1, 1, 0.05)` — but
+`ForgeUnlit` has `blendMode` 0, so the alpha was discarded and the strip painted
+opaque *and* wrote depth over the patch behind it. Fixed on the strip's own
+cloned material (`blendMode = Normal`, `depthWrite = false`), and the
+footprint's clone got `blendMode = Normal` too so the 60% red the contract asks
+for is actually 60%. This is why no previous screenshot has ever shown the
+support footprint.
+
+**The readout moved below the desk edge.** The review of session one's
+screenshots was right: the floating tag was clipped on the left ("adphone
+Desk", "4 x 35 x 89 mm") and sat skewed in the far top-left corner, which was
+the only spot above the buttons' projection from the seated eye. It now hangs
+on the desk's front face like a drawer label — 14 x 8 cm, 8 cm below the desk
+top (y = -83), 1.5 cm proud of the front face (z = -38.5) — and is billboarded
+to the camera each frame rather than tilted once at build time. The billboard
+is the camera's own world rotation pre-multiplied by a +90 degree turn about X,
+which maps the panel's face (local +Y) onto the camera's backward axis and the
+label's up (local -Z) onto the camera's up: every line ends up with exactly the
+camera's world rotation, so it reads as an upright rectangle from anywhere. On
+device that is the user's head.
+
+Below the work surface it cannot collide with anything standing on it, which is
+what the old position was fighting. **Hover on all six buttons — Bigger,
+Smaller, Flip, Turn, Auto-orient, Export STL — completes with no "Blocked".**
+
+**Deviation: the plate sits at x = -8, not the -13 the review asked for.**
+Measured against the SPECS display rectangle rather than the panel. The display
+is about +/-16.6 degrees wide: the desk is clipped to x 283..716 of a 1000 px
+capture at *both* camera poses while its vertical extent changes, and a
+projection model calibrated on that agrees with four independent observed edges
+to within 3 px. A plate centred at -13 puts its left edge at 14.9 degrees from
+the seated pose — inside, 1.7 degrees of margin — but at **19.3 degrees from
+the lean-in pose, outside the display**, which cut the "84" and the "O" of
+"Overhang" clean off. At -8 the left edge is 11.3 degrees seated and 14.7
+degrees leaning in, inside at both, and it still reads as a drawer label in the
+lower left beside the part's hanging arm, clear of every button, chip and the
+part itself. The two instructions could not both be satisfied; the lean-in pose
+is the one with a pass/fail test attached, so -13 lost.
+
+**Text laid out from the top, centred, shrink-to-fit to 12 cm.** Every line is
+`horizontalAlignment` Center on the plate's centre line, and the block is laid
+out downwards from a 0.6 cm top margin instead of spread over the face. The
+title is top-anchored at runtime (`ForgeApp.placeTitle`) because a Text is
+vertically centred on its own origin, so a one-line and a two-line title need
+different origins to share a top edge; everything below it keeps the z budgeted
+for the two-line worst case, so nothing jumps when the part changes. The budget
+for an 8 cm tag with 0.6 cm margins is 3.13 + 1.30 + 1.30 + 0.90 plus three
+0.05 cm gaps = 6.78 of 6.80 cm.
+
+Measured on the running Lens, reading each Text's fitted height back out of its
+transform scale (`labelHeightCm`) — a Text's AABB is its layout box, not its
+glyph extent, so world bounds cannot answer this:
+
+| part | title | dims | overhang | widest line | inside 14 x 8 |
+|---|---|---|---|---|---|
+| hook | "Headphone / Desk Hook" 2 x 1.30 cm | "84 x 35 x 89 mm" 1.20 cm | "Overhang 16.2%" 1.20 cm | 11.84 cm | yes, 1.08 cm margin |
+| clip | "USB-C Cable / Clip" 2 x 1.30 cm | "24 x 12 x 12 mm" 1.20 cm | "Overhang 3.5%" 1.30 cm | 11.84 cm | yes, 1.08 cm margin |
+| tag | "Keychain Tag / SPECS" 2 x 1.30 cm | "60 x 24 x 4 mm" 1.20 cm | "Overhang 0.0%" 1.30 cm | 11.15 cm | yes, 1.43 cm margin |
+
+Top margin is exactly 0.60 cm in all three, bottom margin 0.62 cm, and the
+footer cells ("live design" at 0.80 cm) sit symmetric about the centre line at
+x = -3.0 and +3.0 with 1.10 cm to the slab edge.
+
+**Visual angle, measured at both poses.** The plate centre is 76.8 cm from the
+seated eye and 59.2 cm from the lean-in eye, and because it is billboarded the
+text is face-on at both:
+
+| line | height | seated | lean-in |
+|---|---|---|---|
+| title | 1.30 cm | 0.97 deg | 1.26 deg |
+| dims, overhang | 1.20 cm | 0.89 deg | 1.16 deg |
+| footer | 0.80 cm | 0.60 deg | 0.77 deg |
+
+Seated, the main lines are a hair under the ~1 degree comfort guide — slightly
+worse than session one's floating tag at 1.06, which is the price of hanging it
+off the desk rather than floating it closer to the eye. The lean-in pose clears
+the guide comfortably, and that is the pose the video uses.
+
+**The lean-in pose.** `ForgeConfig.PreviewPose.leanIn`, camera (0, -45, 5)
+looking at (0, -75, -40): 30 cm above the desk top, 45 cm back from the front
+edge. 30/45 is the same ratio as the seated 40/60, so it is a pure dolly along
+the seated sightline — the 33.7 degree pitch is unchanged and only the distance
+moves, 54 cm to the desk edge instead of 72. Confirmed in frame with margin at
+that pose: the part, the plate, the red footprint and all six buttons (the
+outermost button corner is 11.7 degrees off axis against the display's 16.6).
+The seated pose stays the default; it is where a user's head actually is.
+
+### Screenshots
+
+All at the seated pose unless stated, 1120 x 630 dock.
+
+1. **Before, hook loaded.** The readout in the far top-left corner, rotated
+   maybe 15 degrees off upright, its left edge past the display boundary:
+   "adphone Desk / Hook", "4 x 35 x 89 mm", "Overhang 16.2%". A solid white bar
+   runs the full width of the desk's front edge; no red anywhere.
+2. **After, hook loaded.** The white bar is gone. The readout is a clean
+   upright rectangle hanging below the desk's front edge on the left, four
+   lines complete and centred: "Headphone / Desk Hook", "84 x 35 x 89 mm" in
+   amber, "Overhang 16.2%", and "live design" small at the bottom right. A red
+   patch sits on the desk under the part's arms. Six buttons in two rows of
+   three behind, all legible.
+3. **After, lean-in pose.** The same scene a third closer. The desk fills more
+   of the display, the button captions are comfortably readable, the red patch
+   is obvious, and the readout is wholly inside the display with about 1.7
+   degrees to the left edge.
+4. **Keychain tag, seated.** "Keychain Tag / SPECS", "60 x 24 x 4 mm",
+   "Overhang 0.0%", "live design" — and no red patch at all, because there is
+   nothing to support. The flat tag lies on the desk edge.
+
+### LEAF — eight of eight
+
+Run in the preview on SPECS 27, after the changes above:
+
+| scenario | result |
+|---|---|
+| c1_chip_lands_hook | passed |
+| c2_overhang_shown | passed |
+| c3_flip_and_auto_orient | passed, after the fix below |
+| c4_bigger_grows | passed |
+| c5_export_stl | passed |
+| c6_offline_copy | passed, after the fix below |
+| c7_clip_and_tag | passed |
+| demo_run | passed |
+
+**Two scenarios were failing, both the same race, and neither was a Lens bug.**
+c3 asserted `isAnimating` immediately after `interactor.trigger("Flip")` and got
+false; c6 asserted the footer said `"writing..."` and got `"saved"`.
+`DefaultLeafInteractor.trigger` does not resolve when the button fires — it goes
+on to release the pinch and un-hover, each awaiting an IK event and a frame —
+and that tail outlasts both a 0.33 s rotation and an offline export that is only
+a cache read. Sampling after the await tests the frame rate, not the Lens.
+Checked and ruled out that the bigger preview dock caused it: c3 fails at
+620 px wide too.
+
+Fixed with `sawWhile(predicate, action)` in `ForgeTestUtils`, which samples the
+predicate every 20 ms *across* the trigger and reports whether the state was
+ever entered — which is what both criteria actually mean. c3 now confirms the
+Flip genuinely animates rather than snapping, and still asserts the 90 degrees,
+the orientations-table row and the sub-2-second duration.
+
+### Remaining gaps
+
+Carried over from build 2, still true:
+
+1. **Nothing has run on a SPECS device.** Hand tracking, the real pinch at a
+   real desk edge, comfort over a session, and whether the spatial chime reads
+   as coming from the right are all unproven.
+2. **`/adjust` is not wired.** Bigger and Smaller scale the loaded mesh rather
+   than asking the service to re-render, so the exported STL's parameters never
+   change.
+3. **The part reads faintly against the desk** — light grey on light grey, and
+   the real test is an additive display.
+
+New or changed in build 3:
+
+4. **The seated readout is at 0.97 degrees, just under the comfort guide.** The
+   drawer-label position costs about 0.09 degrees against the floating tag.
+   Buying it back means a bigger plate or moving it closer to the eye, and both
+   are what the floating version already tried. The lean-in pose is the honest
+   answer for the video; the seated number is the honest answer for the
+   submission.
+5. **`c5_export_stl` has the same latent race as c6.** It asserts `phase ===
+   "exporting"` and `"writing..."` straight after the trigger and passes only
+   because a live export takes seconds. It should use `sawWhile` too.
+6. **The orientations table is only consulted for axis-aligned rotations.**
+   `/metrics` exists for anything else and is still not called; nothing in the
+   demo needs it, because Flip and Turn only ever reach the 24 rows.
+7. **The SPECS display boundary is not modelled anywhere in the code.** The
+   +/-16.6 degree figure used to place the plate was measured from preview
+   captures in this session and lives only in a comment on `Layout.plateX`.
+   Anything else placed off to one side can run off the display the same way
+   the readout did, and nothing will catch it but a screenshot.

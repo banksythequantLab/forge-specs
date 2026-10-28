@@ -82,6 +82,36 @@ export async function waitUntil(
   }
 }
 
+/**
+ * Runs `action` while sampling `predicate`, and reports whether it was ever
+ * true at any point.
+ *
+ * For transient states — a 0.33 s rotation, a "writing..." status that an
+ * offline export clears within a few frames — sampling after
+ * `interactor.trigger` resolves is a race rather than a test. The trigger does
+ * not resolve when the button fires: it goes on to release the pinch and
+ * un-hover, each awaiting an IK event and a frame, and that tail can outlast
+ * the thing being asserted. Sampling across the trigger asks whether the Lens
+ * ever entered the state, which is the actual criterion.
+ */
+export async function sawWhile(
+  predicate: () => boolean,
+  action: Promise<void>
+): Promise<boolean> {
+  let saw = false
+  let watching = true
+  const watcher = (async () => {
+    while (watching && !saw) {
+      if (predicate()) saw = true
+      else await wait(0.02)
+    }
+  })()
+  await action
+  watching = false
+  await watcher
+  return saw
+}
+
 /** Puts the Lens back to the opening state so each scenario starts the same way. */
 export async function resetLens(): Promise<void> {
   forge().reset()

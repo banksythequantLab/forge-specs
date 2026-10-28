@@ -42,33 +42,38 @@ export const Layout = {
   surfaceLift: 0.35,
 
   /**
-   * Readout plate — a floating upright "tag", off the desk entirely.
+   * Readout plate — a drawer label on the desk's front face.
    *
-   * Build 2 had it lying on the desk, leaned back 40 degrees. Even leaned, the
-   * desk gives it nowhere to go: at the edge the display is only ~50 cm wide,
-   * and the plate and the 28 cm button block had to share that, which capped
-   * every line at about 0.8 degrees of visual angle — under the comfort guide.
+   * Build 2 laid it flat on the desk; build 3 floated it above and left of the
+   * part. Floating fixed the size but not the place: from the seated eye the
+   * only spot clear of the buttons' projection was the far top-left corner,
+   * where the plate sat skewed and ran off the left of the frame.
    *
-   * Taking it off the desk removes the competition. It now hangs above and to
-   * the left of the part, tilted to face the seated eye (`plateFaceTarget`), so
-   * the text is read nearly face-on and each line can be 1.6 cm — about
-   * 1.3 degrees at the 70 cm the plate ends up from the eye.
-   *
-   * Tuned so that from the seated pose it overlaps no button, no chip and not
-   * the part: the sightline through its lower-right corner lands at about
-   * (x -11, z -73) on the desk, behind the back row of buttons.
+   * It now hangs off the front face of the desk like a drawer label — below
+   * the work surface, so it can never collide with anything standing on it,
+   * and beside the part's hanging arm rather than above it. Billboarded to
+   * the head (`plateBillboard`), so it always reads as an upright rectangle
+   * instead of the skewed parallelogram the authored tilt produced.
    */
   plateSize: { w: 14, h: 8 },
-  plateX: -15,
-  /** Height above the desk top, not above the floor. */
-  plateAboveDesk: 16,
-  plateZ: -44,
   /**
-   * The point the plate's face is aimed at — the seated eye. No billboarding:
-   * the tilt is authored once at build time from these numbers, so the plate
-   * never swims when the head moves.
+   * The review asked for -13. Measured against the SPECS display rectangle,
+   * -13 only works from the seated pose: the display is about +/-16.6 degrees
+   * wide (calibrated from the preview — the desk is clipped to x 283..716 of
+   * a 1000 px capture at both poses, and four independent corners agree with
+   * the model to within 3 px), and a plate centred at -13 puts its left edge
+   * at 14.9 degrees seated but 19.3 degrees from the lean-in pose, which cut
+   * the "84" and the "O" of "Overhang" clean off.
+   *
+   * -8 puts the left edge at 11.3 degrees seated and 14.7 degrees leaning in,
+   * inside the display at both, and it still reads as a drawer label in the
+   * lower left beside the part's hanging arm, clear of every button and chip.
    */
-  plateFaceTarget: { x: 0, y: -35, z: 20 },
+  plateX: -8,
+  /** How far below the desk TOP the plate's centre hangs. */
+  plateBelowDeskTop: 8,
+  /** Just proud of the front face, so it never z-fights the desk slab. */
+  plateFrontOffset: 1.5,
 
   /**
    * Button block: two rows of three, flat on the desk, centred behind the part.
@@ -137,7 +142,31 @@ export const PreviewPose = {
   /** Point the preview camera looks at: the middle of the desk's front edge. */
   lookAt: { x: 0, y: -75, z: -40 },
   /** Resulting downward pitch, degrees. atan(40 / 60). */
-  pitchDeg: -33.7
+  pitchDeg: -33.7,
+
+  /**
+   * The lean-in pose, for the demo video.
+   *
+   * The seated pose above is the honest one — it is where a user's head
+   * actually is — but it puts the eye 98 cm from the back of the button block
+   * and everything reads small in a 16:9 frame. Leaning in is something a
+   * person does anyway when they want a closer look: 30 cm above the desk top
+   * (y = -45) and 45 cm back from the front edge (z = +5). 30/45 is the same
+   * ratio as 40/60, so this is a pure dolly along the seated sightline — the
+   * pitch stays at 33.7 degrees and only the distance changes, 54 cm to the
+   * desk edge instead of 72. The part, the plate, the red footprint and all
+   * six buttons sit inside the frame with margin.
+   */
+  leanIn: {
+    /** Eye height above the desk top, in cm. */
+    eyeAboveDesk: 30,
+    /** How far back from the front edge, in cm. */
+    eyeBehindEdge: 45,
+    cameraPosition: { x: 0, y: -45, z: 5 },
+    lookAt: { x: 0, y: -75, z: -40 },
+    /** atan(30 / 45) — the same angle as the seated pose, by construction. */
+    pitchDeg: -33.7
+  }
 }
 
 /**
@@ -146,48 +175,73 @@ export const PreviewPose = {
  *
  * `z` is the line's position down the plate face in plate-local coordinates:
  * the face reads along local -Z (up) to +Z (down), so -4 is the top edge of an
- * 8 cm tag and +4 is the bottom.
+ * 8 cm tag and +4 is the bottom. Every line is centred on the plate's own
+ * centre line (`horizontalAlignment` Center at local x = 0), and the block is
+ * laid out downwards from `topZ` rather than spread over the face, so a short
+ * title never leaves a hole at the top and a long one never pushes the
+ * dimensions off the bottom.
  *
- * The three main lines are 1.3 cm. At the 70 cm the plate sits from a seated
- * eye that is 1.06 degrees of visual angle — over the ~1 degree comfort guide
- * that build 2's desk-bound plate could not reach, and as large as an 8 cm tag
- * can carry: a two-line part name is 3.1 cm of it once the real line pitch is
- * counted (see TEXT_LINE_PITCH), and the dimensions line is 15 characters
- * wide, which caps it at about 1.3 cm on a 13 cm text width.
+ * The budget, for an 8 cm tag with a 0.6 cm margin top and bottom (6.8 cm of
+ * usable face):
+ *
+ *     title    2 lines x 1.3 cm at pitch 1.41   3.13 cm
+ *     dims     1 line  x 1.3 cm                 1.30 cm
+ *     overhang 1 line  x 1.3 cm                 1.30 cm
+ *     footer   1 line  x 0.9 cm                 0.90 cm
+ *     three 0.05 cm gaps                        0.15 cm
+ *                                              --------
+ *                                               6.78 cm
+ *
+ * The three main lines stay at 1.3 cm, which from the seated eye — 77 cm from
+ * the plate on the desk's front face — is 0.97 degrees of visual angle, and
+ * 1.26 degrees from the lean-in pose used for the video.
  */
 export const ReadoutLine = {
-  /** Part name. Allowed to wrap, but never past two lines. */
+  /** Top of the text block: half the plate minus the 0.6 cm margin. */
+  topZ: -3.4,
+  /** Vertical gap between consecutive lines. */
+  gap: 0.05,
+
+  /**
+   * Part name. Allowed to wrap, but never past two lines.
+   *
+   * Unlike the rest it is top-anchored at runtime (ForgeApp.placeTitle): the
+   * Text is vertically centred on its own origin, so a one-line title and a
+   * two-line title need different origins to share a top edge. Everything
+   * below it keeps the fixed z of the two-line worst case, so the dimensions
+   * and overhang lines never jump between parts.
+   */
   title: 1.3,
-  titleZ: -2.05,
   titleMaxLines: 2,
 
   dims: 1.3,
-  dimsZ: 0.4,
+  dimsZ: 0.43,
 
   overhang: 1.3,
-  overhangZ: 1.95,
+  overhangZ: 1.78,
 
   /**
    * The footer is one row carrying two things side by side: what the export is
    * doing on the left, and which path produced the part on the right. It is
-   * deliberately secondary — about 0.7 degrees — and nothing in the readout
-   * depends on reading it at a glance.
+   * deliberately secondary — about 0.65 degrees — and nothing in the readout
+   * depends on reading it at a glance. The two cells are symmetric about the
+   * plate's centre line and each is centre-aligned within its own half.
    */
-  footerHeight: 1.0,
-  footerZ: 3.45,
-  statusX: -3.3,
-  statusMaxWidth: 6.4,
-  sourceX: 3.3,
-  sourceMaxWidth: 6.4,
+  footerHeight: 0.9,
+  footerZ: 2.93,
+  statusX: -3.0,
+  statusMaxWidth: 5.9,
+  sourceX: 3.0,
+  sourceMaxWidth: 5.9,
   /**
    * The footer gets its own floor, below the main lines': "live design" needs
-   * 0.85 cm to stay on one line in half a 14 cm plate, and a footer that wraps
+   * 0.8 cm to stay on one line in half a 14 cm plate, and a footer that wraps
    * onto a second line falls off the bottom of the tag.
    */
   footerMinHeight: 0.8,
 
-  /** Plate is 14 cm wide; leave half a centimetre each side. */
-  maxWidth: 13,
+  /** Plate is 14 cm wide; leave a full centimetre each side. */
+  maxWidth: 12,
   /** No line is ever shrunk below this, or it stops being readable at all. */
   minHeight: 1.1
 }
