@@ -1,0 +1,10 @@
+seg01|This is Forge. Say what you need, and it shows up on your desk at the exact size it will print.
+seg02|I print a lot of small parts, and half of them come out the wrong size, because a slicer preview on a laptop lies about scale. On glasses the part isn't a picture of a size. It is the size, sitting next to the thing it has to fit.
+seg03|One pinch. A small language model on my own box picks a part from a parametric catalog and sizes it. Thirty millimetre edge, thirty-five wide for a headphone band. OpenSCAD renders it, and it lands on the edge at one to one. Eighty-nine millimetres tall, right there.
+seg04|The red on the desk is where the printer would have to build supports. The faces that would droop. That's the mistake I usually find forty minutes into a print.
+seg05|Flip it, and the red is gone. Zero percent. Or let it pick: Auto-orient asks the service for the least-overhang orientation out of all twenty-four.
+seg06|Too small for the band? Bigger. Fifteen percent a pinch, and the numbers follow. Slide it to where the headphones actually hang.
+seg07|Export sends the orientation I chose, not the one the CAD file came in. The STL is written on the box, in that orientation, ready for the slicer. The chime comes from the printer's side, and the arrow tells me where to look.
+seg08|Everything is honest about scale. A six-millimetre cable clip really is this small. A keychain tag that says SPECS.
+seg09|It was planned with the Devpost Learn plan-lens brief, built with CLAD through the Lens Studio MCP. SIK targets, a custom overhang shader, LEAF scenarios for every done criterion, all passing. And it degrades gracefully: with the network gone, the same chips load a cached copy and the plate says so.
+seg10|Say it. See it at real size. Print it. Forge.
