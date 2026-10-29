@@ -582,3 +582,9 @@ New or changed in build 3:
    captures in this session and lives only in a comment on `Layout.plateX`.
    Anything else placed off to one side can run off the display the same way
    the readout did, and nothing will catch it but a screenshot.
+
+## 2026-10-28 — the demo video
+
+- **Pipeline** (`tools/record/`): the Lens Studio Interactive Preview in the *Colorful Home* simulated room (the grid plane looked like a CAD viewport, not like looking through glasses), captured at 30 fps with dxcam → ffmpeg, driven by the LEAF `demo_run` scenario through the Lens Studio MCP so every take has the same beats, then cut to the narration with `edit.py`. Narration synthesized from the maker's own cloned voice (VoxCPM on the box, `service/tools/vo-generate.sh`).
+- **What broke.** ffmpeg's gdigrab gave 4 fps and ddagrab hung on the hybrid GPU (dxcam works). A console launched over WMI popped up in front of the preview and got recorded. The first scripted scenario used fixed 7-s waits: on a night when the box's GPU was shared with a ComfyUI job and a 35B model, the clip took 9 s to design, the tag chip was pinched mid-design and the tag never appeared — `demo_run` now waits for each part to land and each export to finish, and prints a `[Demo] +Ns` beat log the cut is made from. Desktop Duplication delivers no frames once the display has turned off (5-min AC timeout): a take recorded after seven idle minutes was 70 s of one frame; the recorder now holds `ES_DISPLAY_REQUIRED` and the unattended runner checks for fresh frames first.
+- **Takes 6–8.** Take 6 clean but tag missing (the bug above); take 7 black (display off); take 8 clean — hook live in 7.3 s under load, clip 3.7 s, tag 5.5 s, all three exported, scenario 44.9 s. Draft 4 = take 8 + ten narration segments, 1:53, 1280 × 720.
