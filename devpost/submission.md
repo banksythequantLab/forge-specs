@@ -38,8 +38,8 @@ CAD previews on a laptop lie about scale; Forge removes the scale question entir
 
 ## Links
 
-- Repo: https://github.com/banksythequantLab/forge-specs (public at submission)
-- Video: (YouTube, public — add link)
+- Repo: https://github.com/banksythequantLab/forge-specs (public)
+- Video: https://youtu.be/feEwHuF1t_c
 - Backend: https://forge.banksyai.com/health
 
 ## YouTube listing (paste when uploading; visibility must be Public)
