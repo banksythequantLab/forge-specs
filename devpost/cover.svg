@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <pattern id="dots" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <circle cx="4.5" cy="4.5" r="1.6" fill="#1b2a3a"/>
+    </pattern>
+    <pattern id="dotsBig" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <circle cx="6" cy="6" r="3" fill="#1b2a3a"/>
+    </pattern>
+    <pattern id="bricks" width="60" height="30" patternUnits="userSpaceOnUse">
+      <rect width="60" height="30" fill="#24374a"/>
+      <path d="M0 0H60M0 15H60M30 0V15M0 15V30M60 15V30" stroke="#1b2a3a" stroke-width="3"/>
+    </pattern>
+    <pattern id="lines" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
+      <rect width="6" height="3" fill="#b7262a"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="1"/>
+    </linearGradient>
+    <mask id="fadeMask"><rect width="1280" height="720" fill="url(#fade)"/></mask>
+    <clipPath id="arch"><path d="M690 560 V420 A130 130 0 0 1 950 420 V560 Z"/></clipPath>
+  </defs>
+
+  <!-- paper + sunburst -->
+  <rect width="1280" height="720" fill="#efe3c8"/>
+  <g transform="translate(830 330)" fill="#e0cfa6">
+    <path id="ray" d="M0 0 L-60 -900 L60 -900 Z"/>
+    <use href="#ray" transform="rotate(20)"/><use href="#ray" transform="rotate(40)"/><use href="#ray" transform="rotate(60)"/>
+    <use href="#ray" transform="rotate(80)"/><use href="#ray" transform="rotate(100)"/><use href="#ray" transform="rotate(120)"/>
+    <use href="#ray" transform="rotate(140)"/><use href="#ray" transform="rotate(160)"/><use href="#ray" transform="rotate(180)"/>
+    <use href="#ray" transform="rotate(200)"/><use href="#ray" transform="rotate(220)"/><use href="#ray" transform="rotate(240)"/>
+    <use href="#ray" transform="rotate(260)"/><use href="#ray" transform="rotate(280)"/><use href="#ray" transform="rotate(300)"/>
+    <use href="#ray" transform="rotate(320)"/><use href="#ray" transform="rotate(340)"/>
+  </g>
+  <rect width="1280" height="720" fill="url(#dots)" opacity="0.10" mask="url(#fadeMask)"/>
+
+  <!-- the forge: chimney, brick furnace, glowing arch -->
+  <path d="M760 0 H880 L900 150 H740 Z" fill="#1b2a3a"/>
+  <rect x="610" y="150" width="420" height="440" fill="url(#bricks)"/>
+  <rect x="595" y="140" width="450" height="22" fill="#1b2a3a"/>
+  <path d="M690 560 V420 A130 130 0 0 1 950 420 V560 Z" fill="#d6332b"/>
+  <g clip-path="url(#arch)">
+    <rect x="690" y="290" width="260" height="280" fill="url(#lines)" opacity="0.55"/>
+    <path d="M700 565 C720 470 760 500 765 430 C800 480 795 520 815 455 C835 395 860 470 868 410 C900 470 890 520 930 470 C945 520 950 540 950 565 Z" fill="#f2a33a"/>
+    <path d="M735 565 C750 510 780 520 790 480 C810 515 820 525 835 490 C850 520 870 510 880 485 C900 530 905 545 910 565 Z" fill="#f6dd8f"/>
+  </g>
+  <path d="M690 560 V420 A130 130 0 0 1 950 420 V560" fill="none" stroke="#1b2a3a" stroke-width="14"/>
+
+  <!-- floor -->
+  <rect x="0" y="600" width="1280" height="120" fill="#1b2a3a"/>
+  <rect x="0" y="600" width="1280" height="120" fill="url(#dotsBig)" opacity="0.35"/>
+
+  <!-- stump + anvil -->
+  <path d="M748 632 L760 600 H900 L912 632 Z" fill="#7a3b2a"/>
+  <path d="M760 600 H900 L905 618 H755 Z" fill="#5c2c20"/>
+  <g fill="#1b2a3a">
+    <path stroke="#efe3c8" stroke-width="5" stroke-linejoin="round" d="M610 470 H970 Q990 470 995 485 V505 H905 Q880 505 875 530 L870 560 H905 V600 H755 V560 H790 L785 530 Q780 505 755 505 H700 Q650 505 610 470 Z"/>
+  </g>
+  <path d="M630 474 H965 Q982 474 988 486 H700 Q660 486 630 474 Z" fill="#7fa3b5"/>
+  <rect x="760" y="560" width="140" height="10" fill="#7fa3b5" opacity="0.6"/>
+
+  <!-- the hammer: smart glasses as the head (lenses along the head), handle out of the bridge -->
+  <g transform="translate(758 353) rotate(70)">
+    <rect x="-9" y="-300" width="18" height="276" rx="7" fill="#7a3b2a"/>
+    <rect x="-9" y="-300" width="18" height="40" rx="7" fill="#1b2a3a"/>
+    <path d="M-115 -34 H-18 Q-8 -34 -8 -22 V12 Q-8 34 -34 34 H-96 Q-122 34 -122 10 V-26 Q-122 -34 -115 -34 Z" fill="#1b2a3a"/>
+    <path d="M115 -34 H18 Q8 -34 8 -22 V12 Q8 34 34 34 H96 Q122 34 122 10 V-26 Q122 -34 115 -34 Z" fill="#1b2a3a"/>
+    <path d="M-12 -20 Q0 -34 12 -20" stroke="#1b2a3a" stroke-width="14" fill="none"/>
+    <path d="M-106 -22 H-24 Q-20 -22 -20 -16 V8 Q-20 22 -38 22 H-92 Q-110 22 -110 8 V-16 Q-110 -22 -106 -22 Z" fill="#7fa3b5"/>
+    <path d="M106 -22 H24 Q20 -22 20 -16 V8 Q20 22 38 22 H92 Q110 22 110 8 V-16 Q110 -22 106 -22 Z" fill="#7fa3b5"/>
+    <path d="M-100 -16 L-72 -16 L-98 10 Z M30 -16 L58 -16 L32 10 Z" fill="#efe3c8" opacity="0.85"/>
+    <rect x="-134" y="-34" width="12" height="22" fill="#d6332b"/>
+    <rect x="122" y="-34" width="12" height="22" fill="#d6332b"/>
+  </g>
+
+  <!-- sparks at the strike -->
+  <g stroke="#f6dd8f" stroke-width="6" stroke-linecap="round">
+    <path d="M775 455 L725 415"/><path d="M765 465 L705 455"/><path d="M845 452 L895 412"/>
+    <path d="M852 464 L912 458"/><path d="M830 440 L850 392"/>
+  </g>
+  <g fill="#efe3c8"><circle cx="708" cy="402" r="5"/><circle cx="685" cy="447" r="4"/><circle cx="912" cy="398" r="5"/><circle cx="932" cy="452" r="4"/><circle cx="862" cy="378" r="4"/></g>
+
+  <!-- swing lines -->
+  <g fill="none" stroke="#efe3c8" stroke-width="7" stroke-linecap="round" opacity="0.9">
+    <path d="M655 300 Q640 360 665 420"/><path d="M630 250 Q608 330 640 405"/>
+  </g>
+  <!-- left: title block -->
+  <rect x="0" y="0" width="560" height="600" fill="#d6332b"/>
+  <rect x="0" y="0" width="560" height="600" fill="url(#dots)" opacity="0.14"/>
+  <rect x="40" y="40" width="480" height="520" fill="none" stroke="#efe3c8" stroke-width="4"/>
+  <text x="280" y="236" text-anchor="middle" font-family="Inter" font-weight="900" font-size="168"
+        fill="#efe3c8" letter-spacing="2" transform="translate(280 0) scale(0.88 1) translate(-280 0)">FORGE</text>
+  <rect x="70" y="282" width="420" height="132" fill="#1b2a3a"/>
+  <text x="280" y="331" text-anchor="middle" font-family="Inter" font-weight="900" font-size="40" fill="#efe3c8" letter-spacing="3">SAY IT.</text>
+  <text x="280" y="373" text-anchor="middle" font-family="Inter" font-weight="900" font-size="30" fill="#f2a33a" letter-spacing="2">SEE IT AT REAL SIZE.</text>
+  <text x="280" y="404" text-anchor="middle" font-family="Inter" font-weight="900" font-size="22" fill="#efe3c8" letter-spacing="6">PRINT IT.</text>
+  <text x="280" y="468" text-anchor="middle" font-family="Inter" font-weight="800" font-size="21" fill="#efe3c8" letter-spacing="4">A SNAP SPECS LENS</text>
+  <text x="280" y="496" text-anchor="middle" font-family="Inter" font-weight="800" font-size="21" fill="#efe3c8" letter-spacing="4">FOR 3D PRINTING</text>
+  <text x="280" y="534" text-anchor="middle" font-family="Inter" font-weight="600" font-size="15" fill="#1b2a3a" letter-spacing="2">BUILT WITH CLAD IN LENS STUDIO</text>
+
+  <!-- footer strip -->
+  <text x="40" y="668" font-family="Inter" font-weight="800" font-size="20" fill="#efe3c8" letter-spacing="4">DEREK SOLTIS  ·  BANKSY AI</text>
+  <text x="1240" y="668" text-anchor="end" font-family="Inter" font-weight="800" font-size="20" fill="#d6332b" letter-spacing="4">LEARN AR WITH SPECS · 2026</text>
+  <rect x="8" y="8" width="1264" height="704" fill="none" stroke="#1b2a3a" stroke-width="16"/>
+</svg>
