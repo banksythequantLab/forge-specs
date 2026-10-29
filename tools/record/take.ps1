@@ -31,9 +31,12 @@ Log ("lean-in: " + (MCP MovePreviewCamera $leanIn))
 Start-Sleep -Milliseconds 800
 Log "demo_run start"
 $p = Start-Process -FilePath powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $T\run-demo.ps1" -WindowStyle Hidden -PassThru
-Start-Sleep -Seconds 52   # demo_run runs ~41 s inside the preview; the MCP call may time out before that, the scenario keeps going
+# demo_run is event-driven (each chip waits for its part, each export for its file): 45-95 s depending on the box.
+# run-demo.ps1 writes run-demo.out when the MCP call returns, i.e. when the scenario has finished.
+$cap = (Get-Date).AddSeconds($MaxSeconds - $OpeningSeconds - 12)
+while ((Get-Date) -lt $cap -and -not (Test-Path "$T\run-demo.out")) { Start-Sleep -Milliseconds 500 }
 Log ("demo_run call: " + ((Get-Content "$T\run-demo.out" -ErrorAction SilentlyContinue) -join " ").Trim())
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 2
 
 # 4. stop
 New-Item -ItemType File -Path "$out.stop" | Out-Null

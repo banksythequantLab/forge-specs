@@ -4,9 +4,16 @@ Usage: python rec.py <seconds> <out.mp4> [x y w h] [fps]
 Writes a sidecar <out>.log with achieved fps. Stop early by creating <out>.stop next to the output.
 Desktop Duplication only yields a frame when the screen changes, so unchanged frames repeat the last one.
 """
-import os, subprocess, sys, time
+import ctypes, os, subprocess, sys, time
 
 import dxcam
+
+# Keep the display on for the life of this process (Desktop Duplication yields nothing once it goes off);
+# Vesper's AC display timeout is 5 min. ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED, no input synthesised.
+try:
+    ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000002 | 0x00000001)
+except Exception:
+    pass
 
 secs = float(sys.argv[1])
 out = sys.argv[2]

@@ -9,12 +9,15 @@ import { forge, resetLens, wait, waitUntil } from "./ForgeTestUtils"
  *
  * This is not really a test — it asserts only that the Lens got to the end
  * without falling over. It exists so a screen recording can be started, this
- * run kicked off, and the result be the same take every time: the same beats,
- * in the same order, held long enough to read.
+ * run kicked off, and the result be the same beats in the same order, held
+ * long enough to read.
  *
- * The timings are for watching, not for speed. Seven seconds after a chip
- * covers the live design (2-5 s) plus the ring filling and the part landing,
- * and leaves a beat to look at it.
+ * The beats are event-driven, not clocked: each chip waits for its part to
+ * land and each export waits for its file, because the live design takes
+ * 2-5 s when the box's GPU is free and up to 15 s when it is shared. A fixed
+ * 7-s wait (the first version) pinched the tag while the clip was still
+ * designing and the tag never appeared. Every beat prints its time since the
+ * start so the recording can be cut against the log.
  */
 @component
 export class DemoRun extends Scenario {
@@ -22,56 +25,72 @@ export class DemoRun extends Scenario {
     await resetLens()
     const app = forge()
     const interactor = new DefaultLeafInteractor("DemoInteractor")
+    const t0 = getTime()
+    const beat = (what: string) => print("[Demo] +" + (getTime() - t0).toFixed(1) + "s - " + what)
+    const landed = () => {
+      const s = forge().getState()
+      return s.hasPart && s.phase === "ready"
+    }
+    const exported = (before: string) => () => {
+      const s = forge().getState()
+      return s.phase === "ready" && s.filename !== "" && s.filename !== before
+    }
 
     // --- the hook: ask, orient, size, export ------------------------------
-    print("[Demo] 0s - pinch the headphone hook chip")
+    beat("pinch the headphone hook chip")
     await interactor.trigger(app.getTarget("chip:hook"))
-    await wait(7)
-    expect(forge().getState().hasPart, "the hook should have landed by 7 s").toBe(true)
+    await waitUntil(landed, "the hook to land", 20)
+    beat("hook landed - " + forge().getState().partName + ", " + forge().getState().dimsText)
+    await wait(2.5) // a beat at 1:1 with the red footprint on the desk
 
-    print("[Demo] 7s - Flip")
+    beat("Flip")
     await interactor.trigger(app.getTarget("button:Flip"))
     await wait(2)
 
-    print("[Demo] 9s - Flip again")
+    beat("Flip again")
     await interactor.trigger(app.getTarget("button:Flip"))
     await wait(2)
 
-    print("[Demo] 11s - Auto-orient")
+    beat("Auto-orient")
     await interactor.trigger(app.getTarget("button:Auto-orient"))
     await wait(3)
 
-    print("[Demo] 14s - Bigger, twice")
+    beat("Bigger, twice")
     await interactor.trigger(app.getTarget("button:Bigger"))
     await interactor.trigger(app.getTarget("button:Bigger"))
     await wait(2)
 
-    print("[Demo] 16s - Export STL")
+    beat("Export STL")
+    const hookFile = forge().getState().filename
     await interactor.trigger(app.getTarget("button:Export STL"))
-    await wait(6)
-    expect(forge().getState().filename, "the hook should have exported by 22 s").not.toBe("")
+    await waitUntil(exported(hookFile), "the hook's export to finish", 30)
+    beat("hook exported - " + forge().getState().filename)
+    await wait(4) // the chime, the arrow, the saved footer
 
     // --- the other two chips ---------------------------------------------
-    print("[Demo] 22s - the cable clip")
+    beat("the cable clip")
     await resetLens()
     await interactor.trigger(app.getTarget("chip:clip"))
-    await wait(7)
+    await waitUntil(landed, "the clip to land", 20)
+    beat("clip landed - " + forge().getState().partName + ", " + forge().getState().dimsText)
+    await wait(4)
 
-    print("[Demo] 29s - the keychain tag")
+    beat("the keychain tag")
     await resetLens()
     await interactor.trigger(app.getTarget("chip:tag"))
-    await wait(7)
+    await waitUntil(landed, "the tag to land", 20)
+    beat("tag landed - " + forge().getState().partName + ", " + forge().getState().dimsText)
+    await wait(3)
 
-    print("[Demo] 36s - Export the tag")
+    beat("Export the tag")
+    const tagFile = forge().getState().filename
     await interactor.trigger(app.getTarget("button:Export STL"))
-    await waitUntil(
-      () => forge().getState().phase === "ready" && forge().getState().filename !== "",
-      "the tag's export to finish",
-      30
-    )
+    await waitUntil(exported(tagFile), "the tag's export to finish", 30)
+    beat("tag exported - " + forge().getState().filename)
+    await wait(3)
 
     const s = forge().getState()
-    print("[Demo] done - " + s.partName + ", " + s.dimsText + ", " + s.filename)
+    beat("done - " + s.partName + ", " + s.dimsText + ", " + s.filename)
     expect(s.hasPart, "the demo should end with a part on the desk").toBe(true)
   }
 }

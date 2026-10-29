@@ -41,3 +41,17 @@ CAD previews on a laptop lie about scale; Forge removes the scale question entir
 - Repo: https://github.com/banksythequantLab/forge-specs (public at submission)
 - Video: (YouTube, public — add link)
 - Backend: https://forge.banksyai.com/health
+
+## YouTube listing (paste when uploading; visibility must be Public)
+
+**Title:** Forge — say it, see it at real size, print it (Snap SPECS Lens built with CLAD)
+
+**Description:**
+
+Forge is a Snap SPECS Lens for people who 3D-print small useful parts. Pinch a request and a parametric part lands on your desk edge at exactly the size it will print, with the faces that would need supports painted red on the desk. Flip it, let it auto-orient, make it bigger, slide it to where it has to fit, export — the STL is written on a local AI box in the orientation you chose, ready for the slicer.
+
+Built for the Devpost "Learn AR with SPECS" hackathon: planned with the plan-lens skill, built with CLAD in Lens Studio 5.24.1 through the Lens Studio MCP, Spectacles Interaction Kit targets, a custom overhang shader, LEAF scenarios for every done criterion. Screen recording of the Lens Studio Interactive Preview in a simulated room. Narration generated from the maker's own cloned voice.
+
+Project + planning docs: https://github.com/banksythequantLab/forge-specs
+
+**Tags:** Snap Spectacles, SPECS, Lens Studio, CLAD, AR, 3D printing, OpenSCAD, Devpost
