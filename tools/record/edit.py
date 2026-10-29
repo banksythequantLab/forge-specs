@@ -1,14 +1,17 @@
 """Cut the Forge demo video: one recorded take + the narration segments -> forge-demo.mp4 (1280x720, 30 fps).
 
-Usage: python edit.py <take.mp4> <vo_dir> <out.mp4> [font_path]
-The PLAN below is written against take4.mp4's measured timeline (pinch at 21.5 s, flips 28.5/30.5, auto 32.5,
-bigger 35.5, export 37.5, clip pinch 45, tag pinch 53, tag export ~59). Each narration segment gets a sub-clip of
-the take (optionally sped up); clips shorter than the narration are frozen on their last frame.
+Usage: python edit.py <take.mp4> <vo_dir> <out.mp4> [pinch_s] [font_path]
+  pinch_s = seconds into the take when demo_run's first pinch happens (take4: 21.5; = "demo_run start" in the
+  take log minus the recorder's first frame, plus ~13.9 s of LEAF start-up). The rest of the demo_run timeline
+  is relative to it: flips +7/+9, auto +11, bigger +14, export +16, clip +23.5, tag +31.5, tag export ~+37.5.
+Each narration segment gets a sub-clip of the take (optionally sped up); clips shorter than the narration are
+frozen on their last frame.
 """
 import os, subprocess, sys, tempfile
 
 take, vo_dir, out = sys.argv[1], sys.argv[2], sys.argv[3]
-font = sys.argv[4] if len(sys.argv) > 4 else "C:/Windows/Fonts/segoeui.ttf"
+D = float(sys.argv[4]) if len(sys.argv) > 4 else 21.5
+font = sys.argv[5] if len(sys.argv) > 5 else "C:/Windows/Fonts/segoeui.ttf"
 font_f = font.replace("\\", "/").replace(":", "\\:")   # ffmpeg filter syntax: escape the drive colon
 # Crop of the 1096x694 capture: drops the LEAF "[ 0.000s]RUNS: demo_run" banner (top 30 px) and the empty
 # grid left of the SPECS display rectangle, so the desk, part and readout fill more of the 720p frame.
@@ -21,14 +24,14 @@ def dur(path):
 PLAN = [
     ("seg01", 0.0, 6.0, 1.0, "Forge — say it, see it at real size, print it."),
     ("seg02", 0.0, 6.0, 1.0, None),              # chips, seated; frozen for the rest of the line
-    ("seg03", 21.0, 6.5, 1.0, None),             # pinch -> ring -> hook lands at 1:1
-    ("seg04", 24.8, 3.0, 1.0, None),             # landed hook, red footprint on the desk
-    ("seg05", 28.2, 7.0, 1.0, None),             # flip, flip, auto-orient -> 0%
-    ("seg06", 35.2, 2.2, 1.0, None),             # bigger x2
-    ("seg07", 37.4, 7.2, 1.0, None),             # export: writing... -> saved
-    ("seg08", 44.8, 14.4, 2.0, None),            # clip then tag, 2x
-    ("seg09", 56.0, 5.0, 1.0, ["Planned with plan-lens · built with CLAD through the Lens Studio MCP", "SIK targets · custom overhang shader · LEAF 8/8 · offline copy fallback"]),
-    ("seg10", 60.0, 1.0, 1.0, "Forge — built with CLAD for SPECS"),
+    ("seg03", D - 0.5, 6.5, 1.0, None),          # pinch -> ring -> hook lands at 1:1
+    ("seg04", D + 3.3, 3.0, 1.0, None),          # landed hook, red footprint on the desk
+    ("seg05", D + 6.7, 7.0, 1.0, None),          # flip, flip, auto-orient -> 0%
+    ("seg06", D + 13.7, 2.2, 1.0, None),         # bigger x2
+    ("seg07", D + 15.9, 7.2, 1.0, None),         # export: writing... -> saved
+    ("seg08", D + 23.3, 14.4, 2.0, None),        # clip then tag, 2x
+    ("seg09", D + 34.5, 5.0, 1.0, ["Planned with plan-lens · built with CLAD through the Lens Studio MCP", "SIK targets · custom overhang shader · LEAF 8/8 · offline copy fallback"]),
+    ("seg10", D + 38.5, 1.0, 1.0, "Forge — built with CLAD for SPECS"),
 ]
 tmp = tempfile.mkdtemp(prefix="forge-edit-", dir=os.path.dirname(os.path.abspath(out)) or None)
 parts, audio = [], []

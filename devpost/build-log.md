@@ -15,6 +15,12 @@ Running log of how the Lens was planned and built. Planning docs live in this `d
 - Run `plan-lens` → `devpost/design-brief.md`.
 - CLAD build from the brief + `devpost/forge-api.md`; LEAF scenarios per done criterion.
 
+## 2026-10-27 evening — plan-lens interview, GPU driver
+
+- `plan-lens` interview done (10 exchanges). The skill pushed back once: the first button row was 60 cm wide, wider than the ~38 cm the glasses show at arm's length; it became two rows of three, 28 cm wide. Brief approved: `devpost/design-brief.md`.
+- CLAD build 1 started from the brief (below). Lens Studio crashed during the UI Kit install — exception c0000409 inside `nvoglv64.dll` (NVIDIA OpenGL, driver 555.97 from May 2024), same fault bucket as an earlier startup crash. Not a Lens Studio or CLAD bug.
+- Fix: NVIDIA Game Ready 621.01 (notebook package; Vesper is an ASUS TUF A15 with an RTX 2060 mobile). The first silent clean install removed the old driver but Windows re-applied 555.97 from the driver store before the new one landed; reinstalled with the exit code captured and rebooted — `Win32_VideoController` now reports 32.0.16.2101 (= 621.01), and the nvoglv64 fault has not recurred through builds 2–5.
+
 ## CLAD build 1
 
 2026-10-28. Built from `devpost/design-brief.md` against the contract in `devpost/forge-api.md`.
@@ -317,6 +323,14 @@ These are design calls, flagged for the review pass rather than hidden.
 6. **The part reads faintly against the desk** — light grey on light grey. The
    shader's gentle top-light helps, but on an additive display the real test is
    a device.
+
+## 2026-10-28 — backend: the live path under a shared GPU
+
+- **Symptom.** Every live `/design` from the Lens fell back to the cache. The box's Ollama was being hammered by a receptionist test suite from another session (20-s client timeout, 512k-context requests that predicted 47 GiB), which evicted Forge's model on every call; `/warm` itself timed out at 25 s while Ollama's own log showed the request took 1 s once it finally ran.
+- **Fix, service side (`service/forge/llm.py`, `app.py`).** Single small model (`qwen3:4b`, `keep_alive -1`, `num_ctx 8192` — the 262k default had allocated ~80 GB). `/design` now asks Ollama `/api/ps` whether the model is resident *before* calling it: not resident → keyword design immediately + background warm; resident → 8-s budget (`FORGE_LLM_TIMEOUT=8`), then keyword design. `/warm` is non-blocking; the service warms itself on start; `/health` reports `llm_ready`. `part.source` always says which path ran. Prompt tuned for the 4B model (headphone hook 35 mm wide / 40 reach) and names cleaned ("specs_tag" → "Keychain Tag SPECS").
+- **Measured** (`service/tools/latency.sh`): GPU idle → 2.2 / 2.6 / 3.1 s total for the three chips, all live; GPU busy with the receptionist → 6–9 s or keyword fallback, never a hang. 18 → 19 tests.
+- **Orientations table + support footprint.** Flip/Turn only reach the 24 axis-aligned orientations, so `/design` now returns `orientations[24]` — metrics and the overhanging faces projected onto the bed as a triangulated union polygon (shapely + mapbox_earcut), keyed by the rounded Lens rotation matrix — plus `suggested.key`, and a `/metrics` endpoint for free rotations. The Lens can keep the overhang figure honest after a manual Flip (it did not update before) and paint "supports would go here" in red on the desk, where a seated user can actually see it; the red faces themselves point down and are hidden from the seated view. Payload: hook 10 KB, clip 11 KB, tag 42 KB; ≤ 0.8 s to compute. Contract in `forge-api.md`.
+- Repo: `service/` re-synced from the box, skill-pack files restored, committed `22177a5` + `1465d7e`.
 
 ## CLAD build 3
 
