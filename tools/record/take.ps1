@@ -12,7 +12,8 @@ function MCP($tool, $json) { try { return (Invoke-LsMcp -Tool $tool -ArgsJson $j
 $seated = '{"commands":[{"action":"setPosition","x":0,"y":-35,"z":20},{"action":"lookAt","x":0,"y":-75,"z":-40}]}'
 $leanIn = '{"commands":[{"action":"setPosition","x":0,"y":-45,"z":5},{"action":"lookAt","x":0,"y":-75,"z":-40}]}'
 
-# 1. reset the lens to the chips state, seated pose
+# 1. simulated room, reset the lens to the chips state, seated pose
+Log ("env: " + (MCP PreviewPanelTool '{"action":"setConfig","inputType":"Interactive","sourcePath":"C:/Program Files/Snap Inc/Lens Studio/InteractiveResources.bundle/Scenes/Colorful Home"}'))
 Log ("refresh: " + (MCP PreviewPanelTool '{"action":"refresh","waitForReady":true}'))
 Log ("seated: " + (MCP MovePreviewCamera $seated))
 Start-Sleep -Seconds 2
